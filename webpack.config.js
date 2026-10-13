@@ -65,6 +65,10 @@ module.exports = {
     new webpack.ProvidePlugin({
       process: "process/browser",
     }),
+    // Obsidian only loads main.js, so dynamic imports in deps must be inlined
+    new webpack.optimize.LimitChunkCountPlugin({
+      maxChunks: 1,
+    }),
   ],
   module: {
     rules: [
