@@ -9,7 +9,7 @@ export const MAGIC_ENCRYPTED_PREFIX_BASE32 = "KNQWY5DFMRPV";
 export const MAGIC_ENCRYPTED_PREFIX_BASE64URL = "U2FsdGVkX";
 
 const getKeyIVFromPassword = async (
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   password: string,
   rounds: number = DEFAULT_ITER
 ) => {
@@ -41,7 +41,7 @@ export const encryptArrayBuffer = async (
   rounds: number = DEFAULT_ITER,
   saltHex = ""
 ) => {
-  let salt: Uint8Array;
+  let salt: Uint8Array<ArrayBuffer>;
   if (saltHex !== "") {
     salt = hexStringToTypedArray(saltHex);
   } else {

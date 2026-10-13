@@ -34,7 +34,7 @@
     "@types/mime-types": "^2.1.4",
     "@types/mocha": "^10.0.7",
     "@types/mustache": "^4.2.5",
-    "@types/node": "^20.14.12",
+    "@types/node": "^24.19.2",
     "@types/qrcode": "^1.5.5",
     "builtin-modules": "^4.0.0",
     "cross-env": "^7.0.3",
@@ -46,6 +46,7 @@
     "npm-check-updates": "^16.14.20",
     "obsidian": "^1.5.7",
     "openapi-typescript": "^7.1.0",
+    "terser-webpack-plugin": "^5.6.1",
     "ts-loader": "^9.5.1",
     "tslib": "^2.6.3",
     "tsx": "^4.16.2",
@@ -101,5 +102,8 @@
     "util": "^0.12.5",
     "webdav": "^5.6.0",
     "xregexp": "^5.1.1"
+  },
+  "overrides": {
+    "clean-stack": "5.2.0"
   }
 }
