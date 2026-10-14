@@ -42,6 +42,10 @@ This is yet another unofficial sync plugin for Obsidian.
 - **Obsidian API on Mobile has performance issues syncing large files (>= 50 MB).**
   - Setting the "Skip Large Files" option can help resolve issues related to syncing large files.
 
+## Security Hardening
+This fork is being hardened in phases, with Cloudflare R2 and AWS S3 first. Every change is documented in [docs/security-changes.md](./docs/security-changes.md); the findings and the plan are in [docs/security-fix-plan.md](./docs/security-fix-plan.md).
+- [Phase 1: R2 / AWS S3 critical path](./docs/security-changes.md#phase-1-cloudflare-r2--aws-s3-critical-path): imported settings links are validated and must be confirmed; S3 endpoints must use https (except local/private hosts); OAuth codes, tokens and other secrets no longer appear in logs or notices; local file operations can't escape the vault.
+
 ## Download and Install
 - Option #1: Use [Obsidian42 - BRAT](https://github.com/TfTHacker/obsidian42-brat) to install this plugin. Input `pskrebnev/remotely-sync-obsidian` in the configuration of BRAT.
 - Option #2: Manually download assets (`main.js`, `manifest.json`, `styles.css`) from the latest [release](https://github.com/pskrebnev/remotely-sync-obsidian/releases).
