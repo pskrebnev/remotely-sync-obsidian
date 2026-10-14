@@ -8,13 +8,22 @@ import {
   type RemotelySavePluginSettings,
   type UriParams,
 } from "./baseTypes";
+import { encryptExportPayload } from "./exportCrypto";
 import { getShrinkedSettings as getShrinkedSettingsOnedrive } from "./fsOnedrive";
 
+// value of the `enc` parameter in encrypted export links
+export const EXPORT_ENCRYPTION_VERSION = "1";
+
+/**
+ * The exported settings contain credentials, so they are always
+ * encrypted with `passphrase` (see exportCrypto.ts).
+ */
 export const exportQrCodeUri = async (
   settings: RemotelySavePluginSettings,
   currentVaultName: string,
   pluginVersion: string,
-  exportFields: QRExportType
+  exportFields: QRExportType,
+  passphrase: string
 ) => {
   let settings2: Partial<RemotelySavePluginSettings> = {};
 
@@ -62,10 +71,15 @@ export const exportQrCodeUri = async (
   }
 
   delete settings2.vaultRandomID;
-  const data = encodeURIComponent(JSON.stringify(settings2));
+  // device-local, never travels
+  delete settings2.secretStorageNamespace;
+  delete settings2.encryptionMigration;
+  const data = encodeURIComponent(
+    await encryptExportPayload(JSON.stringify(settings2), passphrase)
+  );
   const vault = encodeURIComponent(currentVaultName);
   const version = encodeURIComponent(pluginVersion);
-  const rawUri = `obsidian://${COMMAND_URI}?func=settings&version=${version}&vault=${vault}&data=${data}`;
+  const rawUri = `obsidian://${COMMAND_URI}?func=settings&version=${version}&vault=${vault}&enc=${EXPORT_ENCRYPTION_VERSION}&data=${data}`;
   // console.info(uri)
   const imgUri = await QRCode.toDataURL(rawUri);
   return {

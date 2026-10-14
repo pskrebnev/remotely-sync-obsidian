@@ -77,6 +77,14 @@ import { API_VER_ENSURE_REQURL_OK } from "./baseTypesObs";
 import { messyConfigToNormal, normalConfigToMessy } from "./configPersist";
 import { exportVaultSyncPlansToFiles } from "./debugMode";
 import {
+  decideEncryptionSalt,
+  newEncryptionSalt,
+  readRemoteEncryptionParams,
+  writeRemoteEncryptionParams,
+} from "./encryptionParams";
+import { decryptExportPayload } from "./exportCrypto";
+import type { FakeFs } from "./fsAll";
+import {
   DEFAULT_DROPBOX_CONFIG,
   sendAuthReq as sendAuthReqDropbox,
   setConfigBySuccessfullAuthInplace as setConfigBySuccessfullAuthInplaceDropbox,
@@ -95,8 +103,11 @@ import { DEFAULT_WEBDAV_CONFIG } from "./fsWebdav";
 import { DEFAULT_WEBDIS_CONFIG } from "./fsWebdis";
 import { I18n } from "./i18n";
 import type { LangTypeAndAuto, TransItemType } from "./i18n";
-import { ImportSettingsConfirmModal } from "./importConfirmModal";
-import { importQrCodeUri } from "./importExport";
+import {
+  ImportPassphraseModal,
+  ImportSettingsConfirmModal,
+} from "./importConfirmModal";
+import { EXPORT_ENCRYPTION_VERSION, importQrCodeUri } from "./importExport";
 import {
   applyImportedSettings,
   sanitizeImportedSettings,
@@ -118,6 +129,7 @@ import {
   redactSecrets,
 } from "./misc";
 import { DEFAULT_PROFILER_CONFIG, Profiler } from "./profiler";
+import { type RebuildResult, rebuildRemoteEncryption } from "./reencrypt";
 import {
   fillSecretsFromBackend,
   getSecretBackend,
@@ -166,6 +178,7 @@ const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
   obfuscateSettingFile: true,
   enableMobileStatusBar: false,
   encryptionMethod: "unknown",
+  encryptionSalt: "",
   profiler: DEFAULT_PROFILER_CONFIG,
   pro: DEFAULT_PRO_CONFIG,
 };
@@ -268,15 +281,6 @@ export default class RemotelySavePlugin extends Plugin {
       this.app.vault.getName(),
       async () => await this.saveSettings()
     );
-    const fsEncrypt = new FakeFsEncrypt(
-      fsRemote,
-      this.settings.password ?? "",
-      this.settings.encryptionMethod ?? "rclone-base64"
-    );
-    fsEncrypt.hideKeys([
-      getOwnPluginDataFilePath(this.app.vault.configDir, this.manifest.id),
-    ]);
-
     const t = (x: TransItemType, vars?: any) => {
       return this.i18n.t(x, vars);
     };
@@ -499,6 +503,24 @@ export default class RemotelySavePlugin extends Plugin {
       }
       return;
     }
+
+    let encryptionSalt: string;
+    try {
+      encryptionSalt = await this.resolveEncryptionSalt(fsRemote);
+    } catch (e) {
+      console.error(e);
+      getNotice(triggerSource, `${e}`, 10 * 1000);
+      return;
+    }
+    const fsEncrypt = new FakeFsEncrypt(
+      fsRemote,
+      this.settings.password ?? "",
+      this.settings.encryptionMethod ?? "rclone-base64",
+      encryptionSalt
+    );
+    fsEncrypt.hideKeys([
+      getOwnPluginDataFilePath(this.app.vault.configDir, this.manifest.id),
+    ]);
 
     const configSaver = async () => await this.saveSettings();
 
@@ -1517,6 +1539,188 @@ export default class RemotelySavePlugin extends Plugin {
   }
 
   /**
+   * Finds the rclone salt for this sync, following
+   * _remotely-save-encryption.json in the remote (see encryptionParams.ts).
+   */
+  async resolveEncryptionSalt(fsRemote: FakeFs): Promise<string> {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.i18n.t(x, vars);
+    };
+    if (this.settings.encryptionMigration !== undefined) {
+      throw Error(t("syncrun_reencrypt_unfinished"));
+    }
+    const password = this.settings.password ?? "";
+    const method = this.settings.encryptionMethod ?? "rclone-base64";
+    const remoteParams = await readRemoteEncryptionParams(fsRemote);
+    let remoteIsEmpty = false;
+    if (
+      remoteParams === undefined &&
+      password !== "" &&
+      method === "rclone-base64"
+    ) {
+      remoteIsEmpty = (await fsRemote.walkPartial()).length === 0;
+    }
+    const decision = decideEncryptionSalt({
+      password,
+      method,
+      localSalt: this.settings.encryptionSalt ?? "",
+      remoteParams,
+      remoteIsEmpty,
+      newSalt: newEncryptionSalt,
+    });
+    switch (decision.action) {
+      case "use":
+        return decision.salt;
+      case "adopt":
+        this.settings.encryptionSalt = decision.salt;
+        this.settings.encryptionMethod = decision.method;
+        await this.saveSettings();
+        new Notice(t("syncrun_encryption_adopted"));
+        return decision.salt;
+      case "create":
+        await writeRemoteEncryptionParams(fsRemote, {
+          version: 1,
+          method: "rclone-base64",
+          salt: decision.salt,
+        });
+        if (this.settings.encryptionSalt !== decision.salt) {
+          this.settings.encryptionSalt = decision.salt;
+          await this.saveSettings();
+        }
+        return decision.salt;
+      case "error":
+        throw Error(t("syncrun_encryption_nopassword"));
+    }
+  }
+
+  /**
+   * "Re-encrypt remote": converts the remote to rclone with a new per-vault
+   * salt (see reencrypt.ts). Syncs first, blocks other syncs while running,
+   * and can be resumed after an interruption.
+   */
+  async reencryptRemote(
+    onProgress?: (done: number, total: number, key: string) => void
+  ): Promise<RebuildResult> {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.i18n.t(x, vars);
+    };
+    const password = this.settings.password ?? "";
+    if (password === "") {
+      throw Error(t("reencrypt_error_nopassword"));
+    }
+    if (this.isSyncing) {
+      throw Error(t("reencrypt_error_busy"));
+    }
+
+    if (this.settings.encryptionMigration === undefined) {
+      // start from a fully synced state
+      const before = Date.now();
+      await this.syncRun("manual");
+      const lastOk = await getLastSuccessSyncTimeByVault(
+        this.db,
+        this.vaultRandomID
+      );
+      if (lastOk === null || lastOk === undefined || lastOk < before) {
+        throw Error(t("reencrypt_error_syncfailed"));
+      }
+      this.settings.encryptionMigration = {
+        salt: newEncryptionSalt(),
+        fromMethod: this.settings.encryptionMethod ?? "rclone-base64",
+        fromSalt: this.settings.encryptionSalt ?? "",
+      };
+      await this.saveSettings();
+    }
+    const migration = this.settings.encryptionMigration;
+
+    const fsRemote = getClient(
+      this.settings,
+      this.app.vault.getName(),
+      async () => await this.saveSettings()
+    );
+    const fsLocal = new FakeFsLocal(
+      this.app.vault,
+      this.settings.syncConfigDir ?? false,
+      this.settings.syncBookmarks ?? false,
+      this.app.vault.configDir,
+      this.manifest.id,
+      undefined,
+      this.settings.deleteToWhere ?? "system"
+    );
+    const oldEnc = new FakeFsEncrypt(
+      fsRemote,
+      password,
+      migration.fromMethod,
+      migration.fromSalt
+    );
+    const newEnc = new FakeFsEncrypt(
+      fsRemote,
+      password,
+      "rclone-base64",
+      migration.salt
+    );
+    newEnc.useEmptyCacheMap();
+    const codec = (enc: FakeFsEncrypt) => ({
+      decryptName: (raw: string) => enc._decryptName(raw),
+      decryptContent: (c: ArrayBuffer) => enc._decryptContent(c),
+    });
+
+    this.isSyncing = true;
+    try {
+      const result = await rebuildRemoteEncryption(
+        {
+          listRaw: () => fsRemote.walk(),
+          readRaw: (raw) => fsRemote.readFile(raw),
+          deleteRaw: (raw) => fsRemote.rm(raw),
+          readLocal: async (key) => {
+            if (key.endsWith("/")) {
+              return undefined;
+            }
+            try {
+              const st = await fsLocal.stat(key);
+              const mtime = st.mtimeCli ?? Date.now();
+              return {
+                content: await fsLocal.readFile(key),
+                mtime,
+                ctime: st.ctimeCli ?? mtime,
+              };
+            } catch {
+              return undefined;
+            }
+          },
+          writeNew: async (key, content, mtime, ctime) => {
+            await newEnc.writeFile(key, content, mtime, ctime);
+          },
+          mkdirNew: async (key, mtime) => {
+            await newEnc.mkdir(key, mtime);
+          },
+          publishParams: () =>
+            writeRemoteEncryptionParams(fsRemote, {
+              version: 1,
+              method: "rclone-base64",
+              salt: migration.salt,
+            }),
+          onProgress,
+        },
+        codec(oldEnc),
+        codec(newEnc),
+        new Set([
+          getOwnPluginDataFilePath(this.app.vault.configDir, this.manifest.id),
+        ])
+      );
+
+      this.settings.encryptionMethod = "rclone-base64";
+      this.settings.encryptionSalt = migration.salt;
+      this.settings.encryptionMigration = undefined;
+      await this.saveSettings();
+      return result;
+    } finally {
+      this.isSyncing = false;
+      await oldEnc.closeResources();
+      await newEnc.closeResources();
+    }
+  }
+
+  /**
    * Import links can be crafted by anyone, so validate them
    * and let the user review every change before saving.
    */
@@ -1524,6 +1728,29 @@ export default class RemotelySavePlugin extends Plugin {
     const t = (x: TransItemType, vars?: any) => {
       return this.i18n.t(x, vars);
     };
+
+    if (inputParams?.enc !== undefined) {
+      if (inputParams.enc !== EXPORT_ENCRYPTION_VERSION) {
+        new Notice(
+          t("protocol_import_invalid", {
+            reason: `unsupported export encryption ${inputParams.enc}`,
+          })
+        );
+        return;
+      }
+      new ImportPassphraseModal(this.app, this, async (passphrase) => {
+        let data: string;
+        try {
+          data = await decryptExportPayload(`${inputParams.data}`, passphrase);
+        } catch (e) {
+          new Notice(t("protocol_import_invalid", { reason: `${e}` }));
+          return;
+        }
+        const { enc, ...rest } = inputParams;
+        this.importSettingsWithConfirmation({ ...rest, data });
+      }).open();
+      return;
+    }
 
     const parsed = importQrCodeUri(inputParams, this.app.vault.getName());
     if (parsed.status === "error") {

@@ -17,12 +17,18 @@ export const getSizeFromOrigToEnc = encryptedSize;
 
 export class CipherRclone {
   readonly password: string;
+  readonly salt: string;
   readonly cipher: CipherRCloneCryptPack;
   readonly workers: Worker[];
   init: boolean;
   workerIdx: number;
-  constructor(password: string, workerNum: number) {
+  /**
+   * @param salt per-vault salt (rclone's "password2"); "" means rclone's
+   * built-in default salt, used by vaults created before salts existed
+   */
+  constructor(password: string, workerNum: number, salt = "") {
     this.password = password;
+    this.salt = salt;
     this.init = false;
     this.workerIdx = 0;
 
@@ -50,7 +56,7 @@ export class CipherRclone {
       return;
     }
     // console.debug("begin prepareByCallingWorker");
-    await this.cipher.key(this.password, "");
+    await this.cipher.key(this.password, this.salt);
     // console.debug("finish getting key");
 
     const res: Promise<void>[] = [];

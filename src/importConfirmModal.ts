@@ -2,6 +2,7 @@ import { type App, Modal, Setting } from "obsidian";
 import type { TransItemType } from "./i18n";
 import type { ImportChange } from "./importValidate";
 import type RemotelySavePlugin from "./main";
+import { wrapTextWithPasswordHide } from "./settings";
 
 /**
  * Shows every setting an import would change, before anything is saved.
@@ -60,6 +61,61 @@ export class ImportSettingsConfirmModal extends Modal {
         button.onClick(async () => {
           this.close();
           await this.onConfirm();
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText(t("cancel"));
+        button.onClick(() => {
+          this.close();
+        });
+      });
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
+
+/**
+ * Asks for the passphrase of an encrypted settings export.
+ */
+export class ImportPassphraseModal extends Modal {
+  readonly plugin: RemotelySavePlugin;
+  readonly onSubmit: (passphrase: string) => Promise<void>;
+  constructor(
+    app: App,
+    plugin: RemotelySavePlugin,
+    onSubmit: (passphrase: string) => Promise<void>
+  ) {
+    super(app);
+    this.plugin = plugin;
+    this.onSubmit = onSubmit;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    const t = (x: TransItemType, vars?: any) => {
+      return this.plugin.i18n.t(x, vars);
+    };
+
+    contentEl.createEl("h2", { text: t("modal_importpassphrase_title") });
+    contentEl.createEl("p", { text: t("modal_importpassphrase_desc") });
+
+    let passphrase = "";
+    new Setting(contentEl)
+      .addText((text) => {
+        wrapTextWithPasswordHide(text);
+        text.onChange((val) => {
+          passphrase = val;
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText(t("modal_importpassphrase_decrypt"));
+        button.setCta();
+        button.onClick(async () => {
+          this.close();
+          await this.onSubmit(passphrase);
         });
       })
       .addButton((button) => {
