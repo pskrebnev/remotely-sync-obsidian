@@ -131,10 +131,4 @@ Moreover, the bookmarks of Obsidian are actually stored in `.obsidian/bookmarks.
 
 In the latest version, you can change the settings to allow syncing `_` files or folders, as well as `.obsidian` special config folder as described above (but not any other `.` files or folders).
 
-## How To Debug
-If you see any errors, please check the doc [here](./docs/how_to_debug/README.md) for more details.
 
-Moreover, sometimes the program runs but slowly, you want to check the performance by [enabling the profiler](./docs/check_performance/README.md).
-
-## Bonus: Import And Export Not-Oauth2 Plugin Settings By QR Code
-See [here](./docs/import_export_some_settings.md) for more details.
