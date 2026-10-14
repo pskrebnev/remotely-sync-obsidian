@@ -29,7 +29,11 @@ import { Platform, type RequestUrlParam, requestUrl } from "obsidian";
 import PQueue from "p-queue";
 import { DEFAULT_CONTENT_TYPE, type S3Config } from "./baseTypes";
 import { VALID_REQURL } from "./baseTypesObs";
-import { bufferToArrayBuffer, getFolderLevels } from "./misc";
+import {
+  bufferToArrayBuffer,
+  getFolderLevels,
+  isInsecureRemoteUrl,
+} from "./misc";
 
 import type { Entity } from "./baseTypes";
 import { FakeFs } from "./fsAll";
@@ -224,6 +228,11 @@ const getS3Client = (s3Config: S3Config) => {
   let endpoint = s3Config.s3Endpoint;
   if (!(endpoint.startsWith("http://") || endpoint.startsWith("https://"))) {
     endpoint = `https://${endpoint}`;
+  }
+  if (isInsecureRemoteUrl(endpoint)) {
+    throw Error(
+      `refusing plain http S3 endpoint ${endpoint}: credentials and files would be sent unencrypted; use https:// (http is only allowed for localhost or private network addresses)`
+    );
   }
 
   let s3Client: S3Client;

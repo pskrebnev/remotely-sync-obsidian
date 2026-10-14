@@ -107,20 +107,14 @@ export const importQrCodeUri = (
   ) {
     return {
       status: "error",
-      message: `the uri is not for exporting/importing settings: ${JSON.stringify(
-        inputParams
-      )}`,
+      message: "the uri is not for exporting/importing settings",
     };
   }
 
   if (params.vault !== currentVaultName) {
     return {
       status: "error",
-      message: `the target vault is ${
-        params.vault
-      } but you are currently in ${currentVaultName}: ${JSON.stringify(
-        inputParams
-      )}`,
+      message: `the target vault is ${params.vault} but you are currently in ${currentVaultName}`,
     };
   }
 
@@ -130,7 +124,7 @@ export const importQrCodeUri = (
   } catch (e) {
     return {
       status: "error",
-      message: `errors while parsing settings: ${JSON.stringify(inputParams)}`,
+      message: "errors while parsing settings",
     };
   }
   return {

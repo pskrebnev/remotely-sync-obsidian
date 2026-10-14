@@ -852,3 +852,96 @@ export const checkValidName = (x: string) => {
     result: true,
   };
 };
+
+/**
+ * Throws if a vault-relative path could escape the vault:
+ * absolute paths, drive letters, `..` segments (with `/` or `\` separators),
+ * or NUL / control characters.
+ * Remote listings are untrusted, so every local write / rename / delete
+ * should go through this check.
+ */
+export const assertSafeVaultPath = (key: string) => {
+  if (typeof key !== "string" || key === "") {
+    throw Error(`unsafe vault path: empty`);
+  }
+  if (/[\u0000-\u001f\u007f]/.test(key)) {
+    throw Error(`unsafe vault path (control char): ${JSON.stringify(key)}`);
+  }
+  if (key.startsWith("/") || key.startsWith("\\")) {
+    throw Error(`unsafe vault path (absolute): ${key}`);
+  }
+  if (/^[a-zA-Z]:/.test(key)) {
+    throw Error(`unsafe vault path (drive letter): ${key}`);
+  }
+  for (const segment of key.split(/[\\/]/)) {
+    if (segment === "..") {
+      throw Error(`unsafe vault path (parent dir): ${key}`);
+    }
+  }
+};
+
+const isLocalOrPrivateHostname = (hostname: string) => {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) {
+    return true;
+  }
+  if (h === "::1" || /^f[cd][0-9a-f]{2}:/.test(h)) {
+    // IPv6 loopback and unique local addresses
+    return true;
+  }
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m === null) {
+    return false;
+  }
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return (
+    a === 127 ||
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  );
+};
+
+/**
+ * Plain http is only acceptable for loopback / private network hosts,
+ * e.g. a local MinIO. Everything else would send credentials in clear text.
+ */
+export const isInsecureRemoteUrl = (url: string) => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return (
+    parsed.protocol === "http:" && !isLocalOrPrivateHostname(parsed.hostname)
+  );
+};
+
+const SECRET_KEY_REGEX =
+  /token|secret|password|passphrase|verifier|credential|apikey|accesskeyid|^code$/i;
+
+/**
+ * Deep copy with secret-looking fields masked, for logs and debug output.
+ */
+export const redactSecrets = (x: any, seen = new WeakSet<object>()): any => {
+  if (x === null || typeof x !== "object") {
+    return x;
+  }
+  if (seen.has(x)) {
+    return "[circular]";
+  }
+  seen.add(x);
+  if (Array.isArray(x)) {
+    return x.map((v) => redactSecrets(v, seen));
+  }
+  const res: Record<string, any> = {};
+  for (const [k, v] of Object.entries(x)) {
+    if (SECRET_KEY_REGEX.test(k) && typeof v === "string" && v !== "") {
+      res[k] = "<redacted>";
+    } else {
+      res[k] = redactSecrets(v, seen);
+    }
+  }
+  return res;
+};

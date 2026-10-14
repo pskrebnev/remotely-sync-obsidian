@@ -20,7 +20,6 @@ import type {
   WebdavAuthType,
 } from "./baseTypes";
 
-import cloneDeep from "lodash/cloneDeep";
 import { generateAzureBlobStorageSettingsPart } from "../pro/src/settingsAzureBlobStorage";
 import { generateBoxSettingsPart } from "../pro/src/settingsBox";
 import { generateClearDupFilesSettingsPart } from "../pro/src/settingsClearDupFiles";
@@ -49,11 +48,7 @@ import {
 } from "./fsOnedrive";
 import { simpleTransRemotePrefix } from "./fsS3";
 import type { TransItemType } from "./i18n";
-import {
-  exportQrCodeUri,
-  importQrCodeUri,
-  parseUriByHand,
-} from "./importExport";
+import { exportQrCodeUri, parseUriByHand } from "./importExport";
 import {
   clearAllPrevSyncRecordByVault,
   clearAllSyncPlanRecords,
@@ -65,6 +60,8 @@ import type RemotelySavePlugin from "./main"; // unavoidable
 import {
   changeMobileStatusBar,
   checkHasSpecialCharForDir,
+  isInsecureRemoteUrl,
+  redactSecrets,
   stringToFragment,
 } from "./misc";
 import { DEFAULT_PROFILER_CONFIG } from "./profiler";
@@ -898,15 +895,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       });
     }
 
-    new Setting(s3Div)
+    const s3EndpointDesc = (endpoint: string) =>
+      isInsecureRemoteUrl(endpoint)
+        ? t("settings_s3_insecure_endpoint")
+        : t("settings_s3_endpoint");
+    const s3EndpointSetting = new Setting(s3Div)
       .setName(t("settings_s3_endpoint"))
-      .setDesc(t("settings_s3_endpoint"))
+      .setDesc(s3EndpointDesc(this.plugin.settings.s3.s3Endpoint))
       .addText((text) =>
         text
           .setPlaceholder("")
           .setValue(this.plugin.settings.s3.s3Endpoint)
           .onChange(async (value) => {
             this.plugin.settings.s3.s3Endpoint = value.trim();
+            s3EndpointSetting.setDesc(s3EndpointDesc(value.trim()));
             await this.plugin.saveSettings();
           })
       );
@@ -2707,27 +2709,7 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
             // console.debug(importSettingVal);
             try {
               const inputParams = parseUriByHand(importSettingVal);
-              const parsed = importQrCodeUri(
-                inputParams,
-                this.app.vault.getName()
-              );
-              if (parsed.status === "error") {
-                new Notice(parsed.message);
-              } else {
-                const copied = cloneDeep(parsed.result);
-                // new Notice(JSON.stringify(copied))
-                this.plugin.settings = Object.assign(
-                  {},
-                  this.plugin.settings,
-                  copied
-                );
-                this.plugin.saveSettings();
-                new Notice(
-                  t("protocol_saveqr", {
-                    manifestName: this.plugin.manifest.name,
-                  })
-                );
-              }
+              this.plugin.importSettingsWithConfirmation(inputParams);
             } catch (e) {
               new Notice(`${e}`);
             }
@@ -2796,7 +2778,7 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
         button.setButtonText(t("settings_outputsettingsconsole_button"));
         button.onClick(async () => {
           const c = messyConfigToNormal(await this.plugin.loadData());
-          console.info(c);
+          console.info(redactSecrets(c));
           new Notice(t("settings_outputsettingsconsole_notice"));
         });
       });

@@ -95,7 +95,12 @@ import { DEFAULT_WEBDAV_CONFIG } from "./fsWebdav";
 import { DEFAULT_WEBDIS_CONFIG } from "./fsWebdis";
 import { I18n } from "./i18n";
 import type { LangTypeAndAuto, TransItemType } from "./i18n";
+import { ImportSettingsConfirmModal } from "./importConfirmModal";
 import { importQrCodeUri } from "./importExport";
+import {
+  applyImportedSettings,
+  sanitizeImportedSettings,
+} from "./importValidate";
 import {
   type InternalDBs,
   clearAllLoggerOutputRecords,
@@ -107,7 +112,7 @@ import {
   upsertLastSuccessSyncTimeByVault,
   upsertPluginVersionByVault,
 } from "./localdb";
-import { changeMobileStatusBar } from "./misc";
+import { changeMobileStatusBar, redactSecrets } from "./misc";
 import { DEFAULT_PROFILER_CONFIG, Profiler } from "./profiler";
 import { RemotelySaveSettingTab } from "./settings";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
@@ -584,21 +589,7 @@ export default class RemotelySavePlugin extends Plugin {
     this.enableAutoClearSyncPlanHist();
 
     this.registerObsidianProtocolHandler(COMMAND_URI, async (inputParams) => {
-      // console.debug(inputParams);
-      const parsed = importQrCodeUri(inputParams, this.app.vault.getName());
-      if (parsed.status === "error") {
-        new Notice(parsed.message);
-      } else {
-        const copied = cloneDeep(parsed.result);
-        // new Notice(JSON.stringify(copied))
-        this.settings = Object.assign({}, this.settings, copied);
-        this.saveSettings();
-        new Notice(
-          t("protocol_saveqr", {
-            manifestName: this.manifest.name,
-          })
-        );
-      }
+      this.importSettingsWithConfirmation(inputParams);
     });
 
     this.registerObsidianProtocolHandler(
@@ -606,7 +597,7 @@ export default class RemotelySavePlugin extends Plugin {
       async (inputParams) => {
         new Notice(
           t("protocol_callbacknotsupported", {
-            params: JSON.stringify(inputParams),
+            params: JSON.stringify(redactSecrets(inputParams)),
           })
         );
       }
@@ -693,7 +684,7 @@ export default class RemotelySavePlugin extends Plugin {
           new Notice(t("protocol_dropbox_connect_fail"));
           throw Error(
             t("protocol_dropbox_connect_unknown", {
-              params: JSON.stringify(inputParams),
+              params: JSON.stringify(redactSecrets(inputParams)),
             })
           );
         }
@@ -733,8 +724,8 @@ export default class RemotelySavePlugin extends Plugin {
           );
 
           if ((rsp as any).error !== undefined) {
-            new Notice(`${JSON.stringify(rsp)}`);
-            throw Error(`${JSON.stringify(rsp)}`);
+            new Notice(`${JSON.stringify(redactSecrets(rsp))}`);
+            throw Error(`${JSON.stringify(redactSecrets(rsp))}`);
           }
 
           const self = this;
@@ -777,7 +768,7 @@ export default class RemotelySavePlugin extends Plugin {
           new Notice(t("protocol_onedrive_connect_fail"));
           throw Error(
             t("protocol_onedrive_connect_unknown", {
-              params: JSON.stringify(inputParams),
+              params: JSON.stringify(redactSecrets(inputParams)),
             })
           );
         }
@@ -817,8 +808,8 @@ export default class RemotelySavePlugin extends Plugin {
           );
 
           if ((rsp as any).error !== undefined) {
-            new Notice(`${JSON.stringify(rsp)}`);
-            throw Error(`${JSON.stringify(rsp)}`);
+            new Notice(`${JSON.stringify(redactSecrets(rsp))}`);
+            throw Error(`${JSON.stringify(redactSecrets(rsp))}`);
           }
 
           const self = this;
@@ -862,7 +853,7 @@ export default class RemotelySavePlugin extends Plugin {
           new Notice(t("protocol_onedrivefull_connect_fail"));
           throw Error(
             t("protocol_onedrivefull_connect_unknown", {
-              params: JSON.stringify(inputParams),
+              params: JSON.stringify(redactSecrets(inputParams)),
             })
           );
         }
@@ -885,7 +876,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqPro(
           this.oauth2Info.verifier || "verifier",
           inputParams.code,
@@ -895,7 +885,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplacePro(
@@ -956,7 +945,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqBox(
           inputParams.code,
           async (e: any) => {
@@ -965,7 +953,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplaceBox(
@@ -1012,7 +999,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqPCloud(
           inputParams.hostname,
           inputParams.code,
@@ -1022,7 +1008,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplacePCloud(
@@ -1070,7 +1055,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqYandexDisk(
           inputParams.code,
           async (e: any) => {
@@ -1079,7 +1063,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplaceYandexDisk(
@@ -1126,7 +1109,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqKoofr(
           this.settings.koofr.api,
           inputParams.code,
@@ -1137,7 +1119,6 @@ export default class RemotelySavePlugin extends Plugin {
           },
           true
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplaceKoofr(
@@ -1516,6 +1497,55 @@ export default class RemotelySavePlugin extends Plugin {
     } else {
       await this.saveData(this.settings);
     }
+  }
+
+  /**
+   * Import links can be crafted by anyone, so validate them
+   * and let the user review every change before saving.
+   */
+  importSettingsWithConfirmation(inputParams: any) {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.i18n.t(x, vars);
+    };
+
+    const parsed = importQrCodeUri(inputParams, this.app.vault.getName());
+    if (parsed.status === "error") {
+      new Notice(t("protocol_import_invalid", { reason: parsed.message }));
+      return;
+    }
+
+    const sanitized = sanitizeImportedSettings(
+      parsed.result,
+      DEFAULT_SETTINGS,
+      this.settings
+    );
+    if (sanitized.status === "error") {
+      new Notice(t("protocol_import_invalid", { reason: sanitized.message }));
+      return;
+    }
+    if (sanitized.changes.length === 0) {
+      new Notice(t("protocol_import_nochange"));
+      return;
+    }
+
+    new ImportSettingsConfirmModal(
+      this.app,
+      this,
+      sanitized.changes,
+      sanitized.ignoredKeys,
+      async () => {
+        this.settings = applyImportedSettings(
+          this.settings,
+          sanitized.settings
+        );
+        await this.saveSettings();
+        new Notice(
+          t("protocol_saveqr", {
+            manifestName: this.manifest.name,
+          })
+        );
+      }
+    ).open();
   }
 
   /**

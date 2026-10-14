@@ -13,6 +13,23 @@ These facts about this fork change the priorities:
 
 So the cheapest big win is to **stop registering what can't work** (Phase 0) before hardening what's left.
 
+## Progress
+
+Phase 1 is implemented with Cloudflare R2 and AWS S3 in mind. All changes are in Apache-licensed `src/`, and `pro/` is untouched.
+
+| # | Status | What was done |
+|---|--------|---------------|
+| 1 | Done | `src/importValidate.ts` accepts only known settings keys with the expected types, rejects `__proto__`/`constructor`/`prototype`, never imports `vaultRandomID` or `pro`, and checks `serviceType`. `src/importConfirmModal.ts` lists every change before saving, marks endpoint/bucket/key/sync-behaviour changes with ⚠, and masks secrets. Both the `obsidian://` link and the manual import box use it. Sections are merged key by key, so tokens of other services are kept. |
+| 2 | Done (`src/`) | Removed `console.debug(inputParams)` / `console.debug(authRes)` from all OAuth callbacks. |
+| 4 | Partial | `src/fsLocal.ts` refuses `..` segments (with `/` or `\`), absolute paths, drive letters and control characters for stat, read, write, mkdir, rename and delete. The fix inside the sync engine is still blocked by #17. |
+| 9 | Done for S3 | The S3 client refuses `http://` endpoints unless the host is loopback or private (RFC 1918, `.local`, `::1`, `fc00::/7`), so local MinIO still works. The settings field shows a warning while typing. WebDAV and Webdis are still to do. |
+| 10 | Done | "Output settings to console" now prints a redacted copy. |
+| 15 | Done (`src/`) | Import errors no longer echo the raw link. OAuth error notices and errors pass through `redactSecrets`. |
+
+Tests: `tests/importValidate.test.ts` and `tests/securityHelpers.test.ts` (12 new tests, 84 in total).
+
+**Before merging:** test manually in Obsidian against a throw-away Cloudflare R2 bucket and an AWS S3 bucket: sync, the http refusal, and settings import from a QR link (apply and cancel).
+
 Severity: **Critical** = remote attacker can steal data/credentials with little user interaction; **High** = credential leak or integrity loss under realistic conditions; **Medium** = defense-in-depth gap; **Low** = hygiene.
 
 ---
