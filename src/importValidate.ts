@@ -10,7 +10,12 @@ import { isInsecureRemoteUrl } from "./misc";
 const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
 // never taken from an import
-const NEVER_IMPORT = new Set(["vaultRandomID", "pro"]);
+const NEVER_IMPORT = new Set([
+  "vaultRandomID",
+  "pro",
+  "encryptionMigration",
+  "secretStorageNamespace",
+]);
 
 // not service sections, even though they are objects
 const NON_SERVICE_SECTIONS = new Set(["profiler", "pro"]);
@@ -29,7 +34,7 @@ const RISKY_TOP_LEVEL = new Set([
 ]);
 
 const RISKY_KEY_REGEX =
-  /endpoint|address|url|bucket|region|prefix|basedir|accesskey|secret|password|token|username/i;
+  /endpoint|address|url|bucket|region|prefix|basedir|accesskey|secret|password|token|username|salt/i;
 
 const MASKED_KEY_REGEX = /secret|password|token|accesskeyid/i;
 

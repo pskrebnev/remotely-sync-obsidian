@@ -8,7 +8,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 |-------|-------|--------|
 | [Phase 1](#phase-1-cloudflare-r2--aws-s3-critical-path) | Cloudflare R2 / AWS S3 critical path: settings import, https-only S3, no secrets in logs, vault path guard | Done |
 | [Phase 2](#phase-2-plugin-settings-file-and-credential-storage) | This plugin's `data.json` is never synced; R2/S3 keys and the encryption password move to Obsidian's secret storage | Done |
-| Phase 3 | Encryption upgrades | Not started |
+| [Phase 3](#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports) | Per-vault encryption salt, "Re-encrypt remote" migration, passphrase-encrypted settings exports | Done |
 | Phase 4 | CI and dependencies | Not started |
 | Phase 5 | Other backends and low-severity items | Not started |
 
@@ -195,3 +195,107 @@ These haven't been run yet. Use a throw-away vault and bucket.
 | `src/misc.ts` | `getOwnPluginDataFilePath`, `filterOutKeys` |
 | `src/settings.ts`, `src/langs/en.json` | Security warnings in the config-folder sync dialog |
 | `tests/secretStore.test.ts`, `tests/ownDataFile.test.ts` | New tests |
+
+---
+
+## Phase 3: encryption (per-vault salt, re-encryption, encrypted exports)
+
+Branch: `security-update-phase3`. Fixes #7 (with the choices below) and #11. Nothing under `pro/` changed.
+
+Decisions taken for this phase:
+- **Format:** keep the authenticated **rclone** format (XSalsa20-Poly1305, scrypt) and add a random **per-vault salt**. No new custom crypto format.
+- **Migration:** a **"Re-encrypt remote"** action that rebuilds the remote from this device.
+- **Exports:** **passphrase-encrypted**.
+
+### 1. Per-vault salt for rclone encryption (#7)
+
+**Before.** `rclone-base64` derived its keys with scrypt from the password and rclone's **built-in, fixed salt**. Every vault in the world used the same salt, so an attacker could precompute password guesses once and try them against every bucket. The older `openssl-base64` method is worse: AES-CBC without authentication, so a malicious bucket can tamper with files, and only 20,000 PBKDF2 iterations.
+
+**Now.**
+- **How the salt works:**
+  - `CipherRclone` and `FakeFsEncrypt` take a salt (`src/encryptRClone.ts`, `src/fsEncrypt.ts`).
+  - The salt is a random 24-byte value, base64url-encoded (`newEncryptionSalt`).
+  - It is exactly rclone's `password2`, so a salted bucket can still be read with the rclone CLI (set `password2` to the salt).
+- **Where it lives:** a small **plain** file in the remote root, `_remotely-save-encryption.json` (`src/encryptionParams.ts`), and in the setting `encryptionSalt`. A salt isn't secret; without the password it's useless. The file is never treated as a vault file: `FakeFsEncrypt` skips it in every walk.
+- **Which salt a sync uses** (`decideEncryptionSalt`, called by `resolveEncryptionSalt` in `src/main.ts` before every sync):
+  - **New encrypted setups** (password set, rclone, empty remote) create a salt and publish the file before the first upload.
+  - **Other devices** read the file and **adopt** the salt (and the method, if it was converted from openssl) automatically, with a notice.
+  - **Existing vaults** without the file keep using the built-in salt until they are re-encrypted, so nothing breaks on update.
+  - **Safety:** if the remote has the file but this device has **no password**, sync refuses to run instead of uploading plain files into an encrypted bucket. Upstream couldn't detect this for rclone buckets.
+- **Not changed:** rclone's scrypt cost (N=2¹⁴) stays as it is, so rclone compatibility is kept. The per-vault salt is the main gain: no shared precomputation.
+
+### 2. "Re-encrypt remote" (#7 migration)
+
+*Settings → Basic → Re-encrypt remote*, shown when a password is set. The setting's description says whether the vault uses the old setup, already has a per-vault salt (re-encrypting again rotates it), or has an unfinished run. Implemented in `src/reencrypt.ts` and `reencryptRemote` in `src/main.ts`:
+
+1. **Sync this device.** If that sync doesn't succeed, nothing is changed. A new salt is generated and remembered in `encryptionMigration`, so an interrupted run resumes with the same salt. Sync on this device stays paused until the run finishes.
+2. **Classify every raw remote object** by trying to decrypt its name with the old and the new key.
+   - Names that decrypt with neither key **stop the run before anything changes**.
+   - A name can (rarely) decrypt under both keys. File contents are authenticated, so for files the content decides. Such folders are left alone.
+3. **Publish the new salt** (`_remotely-save-encryption.json`). From this moment other devices switch to the new key, and their syncs stop with a decryption error instead of writing old-format files that would be lost. They continue on their own once the run finishes.
+4. **Write every object in the new format** (folders first). The content comes from **this device** when it has the file, otherwise from the **old remote object**, so files that exist only in the bucket are kept.
+5. **Verify** that every object now exists in the new format. **Only then delete** the old objects (files first, then folders from deep to shallow).
+6. Switch this device's settings to rclone + new salt.
+
+Other details:
+- **Old vault formats:** it also converts **openssl-base64** vaults to rclone.
+- **Resuming:** an interrupted run (network error, closed app) is resumed by running it again. Objects not yet deleted are copied again; that's idempotent and always uses the right source.
+- **Old `data.json` copies:** if an older version uploaded this plugin's own `data.json` (Phase 2), its old copy is **deleted, not carried over**. The local file holds live credentials.
+
+### 3. Settings exports are passphrase-encrypted (#11)
+
+**Before.** *Export settings* produced an `obsidian://remotely-save?...&data=<JSON>` link and QR code with every key and password in clear text. Anyone who saw a screenshot or chat message had full access to the bucket.
+
+**Now** (`src/exportCrypto.ts`, `src/importExport.ts`):
+- **Exporting:** the dialog asks for a passphrase of at least 8 characters before showing anything. The payload is encrypted with **AES-256-GCM** (random 16-byte salt and 12-byte IV), with the key from **PBKDF2-SHA256 at 600,000 iterations** (OWASP 2023). The link carries `enc=1`.
+- **Importing:** an encrypted link first asks for the passphrase (`ImportPassphraseModal`). A wrong passphrase or a modified link is rejected, because GCM is authenticated. The decrypted settings then go through the Phase 1 validation and confirmation dialog.
+- **Device-local fields** (`secretStorageNamespace`, `encryptionMigration`) are never exported or imported. `encryptionSalt` is flagged ⚠ in the import dialog, since changing it changes the key.
+- Older plain links are still accepted for compatibility, with the Phase 1 validation and confirmation.
+
+### Tests
+
+`tests/encryptionPhase3.test.ts` (25 new tests):
+- **Params file:** round-trip, and rejection of invalid versions, methods and salts.
+- **Salt decisions:** legacy, create, no rclone, adopt (including from openssl), and the refusal when there is no password.
+- **Exports:** the iteration count, round-trip, wrong passphrase, tampering, a fresh salt and IV on every export, and short passphrases.
+- **Re-encryption** (with fake old and new codecs):
+  - a full run, preferring local copies and keeping remote-only files;
+  - delete order;
+  - nothing changes on undecryptable objects;
+  - an interrupted run deletes nothing and can be resumed;
+  - a name decrypting under both keys is resolved by authenticated content;
+  - this plugin's `data.json` is dropped.
+
+Result: 109 tests pass. Typecheck, lint and production build are clean.
+
+### Manual test checklist (Obsidian)
+
+These haven't been run yet. Use a throw-away vault and an R2 or S3 bucket.
+
+1. **New setup:** with an empty bucket, set a password (rclone) and sync. `_remotely-save-encryption.json` appears with a salt. Check that `rclone ls` with `password2` = that salt lists the files.
+2. **Second device:** same password, sync. A notice says the encryption settings were adopted, and files sync.
+3. **Legacy vault:** with a bucket encrypted by the previous version (no params file), sync still works. Run *Re-encrypt remote*:
+   - the progress counter runs;
+   - the summary shows how many objects came from this device and from the remote;
+   - afterwards the bucket has only new names plus the params file;
+   - the other device continues after its next sync.
+4. **Interruption:** start a re-encryption on a larger vault and close Obsidian midway. Syncs on both devices stop with a clear message. Run it again: it finishes, and both devices sync again.
+5. **openssl vault:** re-encrypt converts it to rclone.
+6. **Export/import:** export S3 settings with a passphrase. Importing asks for it; a wrong passphrase is rejected; the right one opens the confirmation dialog.
+
+### Files
+
+| File | Change |
+|------|--------|
+| `src/encryptionParams.ts` | New: the remote params file and the salt decision |
+| `src/reencrypt.ts` | New: classification and rebuild for "Re-encrypt remote" |
+| `src/exportCrypto.ts` | New: AES-GCM/PBKDF2 encryption of exported settings |
+| `src/encryptRClone.ts`, `src/fsEncrypt.ts` | Salt support; params file skipped in walks; `useEmptyCacheMap` |
+| `src/main.ts` | Salt resolution before each sync; `reencryptRemote`; passphrase step on import |
+| `src/settings.ts` | *Re-encrypt remote* setting and dialog; passphrase step in the export dialog |
+| `src/importExport.ts` | Exports are always encrypted (`enc=1`); device-local fields removed |
+| `src/importConfirmModal.ts` | `ImportPassphraseModal` |
+| `src/importValidate.ts` | Never imports `encryptionMigration`/`secretStorageNamespace`; salt changes flagged |
+| `src/baseTypes.ts` | Settings `encryptionSalt`, `encryptionMigration`; `enc` link parameter |
+| `src/langs/en.json` | New strings |
+| `tests/encryptionPhase3.test.ts` | New tests |
