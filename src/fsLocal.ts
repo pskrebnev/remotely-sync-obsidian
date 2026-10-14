@@ -4,6 +4,7 @@ import { FakeFs } from "./fsAll";
 import { TFile, TFolder, type Vault } from "obsidian";
 import {
   assertSafeVaultPath,
+  getOwnPluginDataFilePath,
   mkdirpInVault,
   statFix,
   unixTimeToStr,
@@ -125,6 +126,15 @@ export class FakeFsLocal extends FakeFs {
     return local;
   }
 
+  /**
+   * Sync must never overwrite, move or delete our own settings file.
+   */
+  _assertNotOwnDataFile(key: string) {
+    if (key === getOwnPluginDataFilePath(this.configDir, this.pluginID)) {
+      throw Error(`refusing to modify plugin settings file by sync: ${key}`);
+    }
+  }
+
   async walkPartial(): Promise<Entity[]> {
     return await this.walk();
   }
@@ -164,6 +174,7 @@ export class FakeFsLocal extends FakeFs {
     ctime: number
   ): Promise<Entity> {
     assertSafeVaultPath(key);
+    this._assertNotOwnDataFile(key);
     await this.vault.adapter.writeBinary(key, content, {
       mtime: mtime,
       ctime: ctime,
@@ -179,11 +190,14 @@ export class FakeFsLocal extends FakeFs {
   async rename(key1: string, key2: string): Promise<void> {
     assertSafeVaultPath(key1);
     assertSafeVaultPath(key2);
+    this._assertNotOwnDataFile(key1);
+    this._assertNotOwnDataFile(key2);
     return await this.vault.adapter.rename(key1, key2);
   }
 
   async rm(key: string): Promise<void> {
     assertSafeVaultPath(key);
+    this._assertNotOwnDataFile(key);
     if (this.deleteToWhere === "obsidian") {
       await this.vault.adapter.trashLocal(key);
     } else {

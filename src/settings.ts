@@ -703,6 +703,13 @@ class SyncConfigDirModal extends Modal {
         });
       });
 
+    contentEl.createEl("p", { text: t("modal_syncconfig_security") });
+    if ((this.plugin.settings.password ?? "") === "") {
+      contentEl.createEl("p").createEl("strong", {
+        text: t("modal_syncconfig_noencryption"),
+      });
+    }
+
     new Setting(contentEl)
       .addButton((button) => {
         button.setButtonText(t("modal_syncconfig_secondconfirm"));

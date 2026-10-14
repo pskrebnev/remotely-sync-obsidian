@@ -15,7 +15,7 @@ So the cheapest big win is to **stop registering what can't work** (Phase 0) bef
 
 ## Progress
 
-Phase 1 is implemented with Cloudflare R2 and AWS S3 in mind. All changes are in Apache-licensed `src/`, and `pro/` is untouched.
+Phases 1 and 2 are implemented with Cloudflare R2 and AWS S3 in mind. Full details: [security-changes.md](./security-changes.md). All changes are in Apache-licensed `src/`, and `pro/` is untouched.
 
 | # | Status | What was done |
 |---|--------|---------------|
@@ -23,6 +23,8 @@ Phase 1 is implemented with Cloudflare R2 and AWS S3 in mind. All changes are in
 | 2 | Done (`src/`) | Removed `console.debug(inputParams)` / `console.debug(authRes)` from all OAuth callbacks. |
 | 4 | Partial | `src/fsLocal.ts` refuses `..` segments (with `/` or `\`), absolute paths, drive letters and control characters for stat, read, write, mkdir, rename and delete. The fix inside the sync engine is still blocked by #17. |
 | 9 | Done for S3 | The S3 client refuses `http://` endpoints unless the host is loopback or private (RFC 1918, `.local`, `::1`, `fc00::/7`), so local MinIO still works. The settings field shows a warning while typing. WebDAV and Webdis are still to do. |
+| 5 | Done (workaround) | Phase 2: this plugin's `data.json` is never listed locally, is hidden from remote walks, and can't be written, renamed or deleted by sync. The config-sync dialog warns about plugin code and missing encryption. The sync engine itself is unchanged (#17). |
+| 6 | Done for S3 + E2E password | Phase 2: on Obsidian 1.11.4+, the S3 access key, secret key and encryption password are stored in `app.secretStorage`, and `data.json` keeps empty strings. They migrate automatically and fall back to `data.json` if storage is unavailable. WebDAV/Webdis/OAuth tokens are still to do (Phase 5). |
 | 10 | Done | "Output settings to console" now prints a redacted copy. |
 | 15 | Done (`src/`) | Import errors no longer echo the raw link. OAuth error notices and errors pass through `redactSecrets`. |
 

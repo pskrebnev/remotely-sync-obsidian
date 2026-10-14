@@ -7,7 +7,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 | Phase | Focus | Status |
 |-------|-------|--------|
 | [Phase 1](#phase-1-cloudflare-r2--aws-s3-critical-path) | Cloudflare R2 / AWS S3 critical path: settings import, https-only S3, no secrets in logs, vault path guard | Done |
-| Phase 2 | This plugin's `data.json` and credential storage | Not started |
+| [Phase 2](#phase-2-plugin-settings-file-and-credential-storage) | This plugin's `data.json` is never synced; R2/S3 keys and the encryption password move to Obsidian's secret storage | Done |
 | Phase 3 | Encryption upgrades | Not started |
 | Phase 4 | CI and dependencies | Not started |
 | Phase 5 | Other backends and low-severity items | Not started |
@@ -111,3 +111,87 @@ These haven't been run yet. Use throw-away buckets.
 | `src/misc.ts` | `assertSafeVaultPath`, `isInsecureRemoteUrl`, `redactSecrets` |
 | `src/langs/en.json` | Strings for the dialog and warnings (other languages fall back to English) |
 | `tests/importValidate.test.ts`, `tests/securityHelpers.test.ts` | New tests |
+
+---
+
+## Phase 2: plugin settings file and credential storage
+
+Branch: `security-update-phase2`. Fixes #6 for the S3 (R2/AWS) keys and the end-to-end encryption password, and fixes #5 without changing the PolyForm-licensed sync engine (the "workaround" option from #17). Nothing under `pro/` changed.
+
+### 1. This plugin's `data.json` is never synced, in either direction (#5, High)
+
+**Before.** With *Sync config dir* on, `.obsidian/plugins/remotely-save/data.json` was explicitly included in sync (`isLikelyPluginSubFiles` in `src/obsFolderLister.ts`). That file holds every credential: S3 keys, the encryption password and OAuth tokens. It was uploaded to the bucket, in plain text when end-to-end encryption was off. In the other direction, a `data.json` planted in the bucket would be downloaded over your local settings, silently pointing sync at someone else's storage.
+
+**Now.** Three independent layers, all keyed on `getOwnPluginDataFilePath(configDir, pluginId)` (`src/misc.ts`):
+- **Local listing:** `listFilesInObsFolder` (`src/obsFolderLister.ts`) no longer lists the file, so it's never uploaded.
+- **Remote listing:** `FakeFsEncrypt.hideKeys` (`src/fsEncrypt.ts`, set up in `src/main.ts`) drops remote entries with that (decrypted) path from every walk, so a remote copy is never downloaded or compared. The filter is the pure `filterOutKeys` helper in `src/misc.ts`.
+- **Last line of defence:** `FakeFsLocal` (`src/fsLocal.ts`) refuses `writeFile`, `rename` and `rm` on that path during sync.
+
+Other plugins' `data.json` files are still synced as before. Users who enable config sync usually want that.
+
+**Config-folder sync warning.** The *Sync config dir* confirmation dialog now says:
+- this plugin's settings are never synced;
+- other plugins' settings and code *are* synced, and downloaded plugin code runs on every device, so only enable it if nobody else can write to the bucket;
+- if end-to-end encryption is off, a bold ⚠ explains that other plugins' settings (possibly with their API keys) will be stored unencrypted.
+
+**What users notice.**
+- This plugin's settings no longer travel between devices through config sync. Set up each device yourself, or use *Export / Import settings* (QR code), which now goes through the Phase 1 confirmation dialog.
+- A `data.json` that an earlier version uploaded **stays in the bucket** (it's just ignored now). Delete `.obsidian/plugins/remotely-save/data.json` from the bucket. With end-to-end encryption on, its remote name is encrypted, so remove it from a device that still has the old version, or rotate the keys it contained.
+
+### 2. R2/S3 keys and the encryption password move to Obsidian's secret storage (#6, High)
+
+**Before.** All credentials were stored in `data.json` inside the vault. The *obfuscate settings file* option only base64-encoded and reversed the JSON, so anything that could read the vault folder (backups, git, cloud-synced folders, other plugins) could read the keys.
+
+**Now** (`src/secretStore.ts`, hooked into `loadSettings`/`saveSettings` in `src/main.ts`):
+- **Where secrets go:** on Obsidian **1.11.4 or newer**, which provides `app.secretStorage`, these fields are stored in Obsidian's secret storage instead of `data.json`:
+  - `s3.s3AccessKeyID` and `s3.s3SecretAccessKey`;
+  - `password` (the end-to-end encryption password).
+- **What stays in `data.json`:** an empty string in place of each moved field, plus `secretStorageNamespace`. That's a random 12-character id prefixing this vault's entries (for example `remotely-save-<ns>-s3-s3-secret-access-key`) so vaults don't collide. It isn't a secret.
+- **Migration is automatic.** The plugin already saves settings at the end of loading, so keys already in `data.json` move on the first start after updating. While a value is still on disk, the disk value wins.
+- **No credential can be lost.**
+  - If secret storage is missing (older Obsidian) or a write fails, the value stays in `data.json` exactly as before.
+  - In memory, settings always hold the real values, so sync, *Check connectivity* and QR export work unchanged.
+  - Clearing a field in settings clears the stored secret too.
+- **Not moved yet:** WebDAV, Webdis and OAuth tokens (Dropbox, OneDrive). That's Phase 5. The same mechanism applies; they just need adding to `SECRET_FIELDS`.
+
+**What users notice.** Nothing, on Obsidian 1.11.4+. Opening `data.json` shows empty S3 key and password fields. **Downgrading** to an older plugin version after migrating would show empty keys, so you'd need to re-enter them.
+
+Obsidian keeps secret storage on the device, outside the vault. It isn't encryption against other plugins running in the same Obsidian, but it keeps keys out of every copy of the vault folder.
+
+### Tests
+
+- `tests/secretStore.test.ts`:
+  - valid storage ids;
+  - secrets move out of `data.json` and come back on load;
+  - the namespace stays stable and rotated keys take effect;
+  - a value still on disk wins;
+  - a secret can be cleared;
+  - values stay on disk when storage fails or is missing;
+  - storage is only used when the API exists.
+- `tests/ownDataFile.test.ts`: the plugin's `data.json` path, and filtering it from walk results while keeping other plugins' files.
+- Result: 94 tests pass (10 new). Typecheck, lint and production build are clean.
+
+### Manual test checklist (Obsidian)
+
+These haven't been run yet. Use a throw-away vault and bucket.
+
+1. **Migration:** with an R2 or AWS configuration in `data.json`, start Obsidian 1.11.4+ with this build. Sync still works, and `data.json` shows `"s3AccessKeyID": ""`, `"s3SecretAccessKey": ""` and a `secretStorageNamespace`. If obfuscation is on, check with *Output settings to console*. Restart, and sync still works.
+2. **Config sync:**
+   - turn on *Sync config dir* without a password, and the ⚠ warning appears;
+   - sync, and `.obsidian/plugins/remotely-save/data.json` is **not** uploaded;
+   - upload a fake `data.json` to that path in the bucket and sync, and local settings are unchanged.
+3. **Older Obsidian (if available):** keys stay in `data.json` and sync works.
+
+### Files
+
+| File | Change |
+|------|--------|
+| `src/secretStore.ts` | New: moves credentials between settings and Obsidian's secret storage |
+| `src/main.ts` | Load/save go through secret storage; remote walks hide this plugin's `data.json` |
+| `src/baseTypes.ts` | New optional setting `secretStorageNamespace` |
+| `src/obsFolderLister.ts` | Never lists this plugin's `data.json` |
+| `src/fsEncrypt.ts` | `hideKeys`: leaves given keys out of remote walks |
+| `src/fsLocal.ts` | Refuses to write, rename or delete this plugin's `data.json` during sync |
+| `src/misc.ts` | `getOwnPluginDataFilePath`, `filterOutKeys` |
+| `src/settings.ts`, `src/langs/en.json` | Security warnings in the config-folder sync dialog |
+| `tests/secretStore.test.ts`, `tests/ownDataFile.test.ts` | New tests |

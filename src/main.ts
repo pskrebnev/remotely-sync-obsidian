@@ -112,8 +112,17 @@ import {
   upsertLastSuccessSyncTimeByVault,
   upsertPluginVersionByVault,
 } from "./localdb";
-import { changeMobileStatusBar, redactSecrets } from "./misc";
+import {
+  changeMobileStatusBar,
+  getOwnPluginDataFilePath,
+  redactSecrets,
+} from "./misc";
 import { DEFAULT_PROFILER_CONFIG, Profiler } from "./profiler";
+import {
+  fillSecretsFromBackend,
+  getSecretBackend,
+  splitSecretsForDisk,
+} from "./secretStore";
 import { RemotelySaveSettingTab } from "./settings";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
 
@@ -264,6 +273,9 @@ export default class RemotelySavePlugin extends Plugin {
       this.settings.password ?? "",
       this.settings.encryptionMethod ?? "rclone-base64"
     );
+    fsEncrypt.hideKeys([
+      getOwnPluginDataFilePath(this.app.vault.configDir, this.manifest.id),
+    ]);
 
     const t = (x: TransItemType, vars?: any) => {
       return this.i18n.t(x, vars);
@@ -1322,6 +1334,7 @@ export default class RemotelySavePlugin extends Plugin {
       cloneDeep(DEFAULT_SETTINGS),
       messyConfigToNormal(await this.loadData())
     );
+    fillSecretsFromBackend(this.settings, getSecretBackend(this.app));
 
     if (this.settings.syncBookmarks === undefined) {
       this.settings.syncBookmarks = false;
@@ -1492,10 +1505,14 @@ export default class RemotelySavePlugin extends Plugin {
   }
 
   async saveSettings() {
+    const onDisk = splitSecretsForDisk(
+      this.settings,
+      getSecretBackend(this.app)
+    );
     if (this.settings.obfuscateSettingFile) {
-      await this.saveData(normalConfigToMessy(this.settings));
+      await this.saveData(normalConfigToMessy(onDisk));
     } else {
-      await this.saveData(this.settings);
+      await this.saveData(onDisk);
     }
   }
 

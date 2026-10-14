@@ -1,7 +1,7 @@
 import type { CipherMethodType, Entity } from "./baseTypes";
 import * as openssl from "./encryptOpenSSL";
 import * as rclone from "./encryptRClone";
-import { isSpecialFolderNameToSkip, isVaildText } from "./misc";
+import { filterOutKeys, isSpecialFolderNameToSkip, isVaildText } from "./misc";
 
 import cloneDeep from "lodash/cloneDeep";
 import { FakeFs } from "./fsAll";
@@ -78,6 +78,7 @@ export class FakeFsEncrypt extends FakeFs {
   cacheMapOrigToEnc: Record<string, string>;
   hasCacheMap: boolean;
   kind: string;
+  hiddenKeys: Set<string>;
 
   constructor(innerFs: FakeFs, password: string, method: CipherMethodType) {
     super();
@@ -86,6 +87,7 @@ export class FakeFsEncrypt extends FakeFs {
     this.method = method;
     this.cacheMapOrigToEnc = {};
     this.hasCacheMap = false;
+    this.hiddenKeys = new Set();
 
     this.kind = `encrypt(${this.innerFs.kind},${
       this.password !== "" ? method : "no password"
@@ -170,14 +172,28 @@ export class FakeFsEncrypt extends FakeFs {
     }
   }
 
+  /**
+   * Remote entries with these (decrypted) keys are left out of every walk,
+   * so they are never downloaded over local files.
+   */
+  hideKeys(keys: string[]) {
+    for (const k of keys) {
+      this.hiddenKeys.add(k);
+    }
+  }
+
   async walk(): Promise<Entity[]> {
     const innerWalkResult = await this.innerFs.walk();
-    return await this._dealWithWalk(innerWalkResult);
+    return this._filterHidden(await this._dealWithWalk(innerWalkResult));
   }
 
   async walkPartial(): Promise<Entity[]> {
     const innerWalkResult = await this.innerFs.walkPartial();
-    return await this._dealWithWalk(innerWalkResult);
+    return this._filterHidden(await this._dealWithWalk(innerWalkResult));
+  }
+
+  _filterHidden(entities: Entity[]): Entity[] {
+    return filterOutKeys(entities, this.hiddenKeys);
   }
 
   async _dealWithWalk(innerWalkResult: Entity[]): Promise<Entity[]> {
