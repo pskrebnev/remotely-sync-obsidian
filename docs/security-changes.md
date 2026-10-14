@@ -9,7 +9,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 | [Phase 1](#phase-1-cloudflare-r2--aws-s3-critical-path) | Cloudflare R2 / AWS S3 critical path: settings import, https-only S3, no secrets in logs, vault path guard | Done |
 | [Phase 2](#phase-2-plugin-settings-file-and-credential-storage) | This plugin's `data.json` is never synced; R2/S3 keys and the encryption password move to Obsidian's secret storage | Done |
 | [Phase 3](#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports) | Per-vault encryption salt, "Re-encrypt remote" migration, passphrase-encrypted settings exports | Done |
-| Phase 4 | CI and dependencies | Not started |
+| [Phase 4](#phase-4-ci-and-dependencies) | CI audit gate, Dependabot, SHA-pinned actions, fewer vulnerable dependencies | Done |
 | Phase 5 | Other backends and low-severity items | Not started |
 
 ---
@@ -299,3 +299,69 @@ These haven't been run yet. Use a throw-away vault and an R2 or S3 bucket.
 | `src/baseTypes.ts` | Settings `encryptionSalt`, `encryptionMigration`; `enc` link parameter |
 | `src/langs/en.json` | New strings |
 | `tests/encryptionPhase3.test.ts` | New tests |
+
+---
+
+## Phase 4: CI and dependencies
+
+Branch: `security-update-phase4`. Finishes #12 and #13. PR #1 had already committed the lockfile, switched CI to `npm ci`, set explicit token permissions and removed the CLA workflow.
+
+### 1. Fewer vulnerable dependencies (#12)
+
+`npm audit --omit=dev` went from **15 to 13** findings (9 high, 4 low). Everything that could be fixed without breaking or removing features is fixed. What's left was checked against the real bundle.
+
+| Change | Why |
+|--------|-----|
+| `overrides.uuid: ^11.1.1` | Fixes GHSA-w5hq-g745-h8pq (moderate; it also cleared the `@azure/msal-node` finding). `uuid` *is* bundled (OneDrive and Box code), but both users only call `v4()`, which uuid 11 still provides. |
+| Removed `aws-crt` and `@aws-sdk/signature-v4-crt` | Nothing imports them. They are native Node modules for SigV4a (multi-region access points) and can't run in Obsidian. Removing them drops 18 packages and their install scripts. |
+| Moved `rimraf` to `devDependencies` | Only used by the `clean` script. |
+
+**What remains**, verified with webpack's module list (`webpack --json`):
+
+| Advisory | Severity | In the plugin bundle? | Status |
+|----------|----------|-----------------------|--------|
+| `basic-ftp` GHSA-c475-qrg2-pj4r (via Box SDK → `proxy-agent` → `get-uri`) | high | **No.** Node-only FTP code, never bundled | Accepted in the allow-list; no fixed version exists |
+| `braces` GHSA-vfj7-8cjw-p6xm (via pCloud SDK → `@babel/cli` → `chokidar`) | high | **No.** The pCloud SDK wrongly lists a build tool as a runtime dependency | Accepted in the allow-list; no fixed version exists |
+| `elliptic` GHSA-848j-6mx2-7j84 (via `crypto-browserify`, webpack's `crypto` polyfill) | low | **Yes**, through the polyfill used by `@azure/msal-node`, `jsonwebtoken` and `jwa` | Accepted (not blocking). The advisory concerns ECDSA signing, which the plugin never does. Replacing the polyfill would risk breaking OneDrive login |
+
+The 9 "high" entries `npm audit` prints are these two root advisories plus the packages that depend on them. Both chains belong to the PRO backends (Box, pCloud) and would disappear if those are removed (#17).
+
+### 2. Audit gate in CI (#12)
+
+`scripts/check-audit.mjs` (run in CI right after `npm ci`, and locally with `npm run audit:check`):
+- runs `npm audit --omit=dev --json`;
+- **fails the build** on any high or critical advisory in runtime dependencies that isn't reviewed in `scripts/audit-allowlist.json`;
+- prints low and moderate advisories without failing;
+- notes allow-list entries that are no longer reported, so they can be removed.
+
+Every allow-list entry has a reason and a review date. Adding an entry is a deliberate, reviewable change. It uses no third-party tool, so it adds no supply-chain risk. A test run with an empty allow-list fails as expected.
+
+### 3. GitHub Actions pinned to commits, plus Dependabot (#13)
+
+- All actions in `auto-build.yml` and `release.yml` are pinned to the **commit SHA** of their current release, with the version as a comment. A moved or compromised tag can no longer change what runs in CI or in the release job.
+
+  | Action | Version |
+  |--------|---------|
+  | `actions/checkout` | v7.0.1 |
+  | `actions/cache` | v6.1.0 |
+  | `actions/setup-node` | v7.1.0 |
+  | `actions/upload-artifact` | v7.0.2 |
+  | `softprops/action-gh-release` | v3.0.3 |
+
+- `.github/dependabot.yml` checks npm and GitHub Actions **weekly**:
+  - npm minor and patch updates come grouped in one PR;
+  - major updates come one PR each;
+  - Actions updates bump both the SHA and the version comment.
+
+  Every Dependabot PR runs the tests, the build and the audit gate.
+- **If OAuth client secrets are ever added** to this repo, keep them in the `env-for-buildci` environment with required reviewers, so workflows started by pull requests from forks can't read them. That's a repository setting, not code.
+
+### Files
+
+| File | Change |
+|------|--------|
+| `package.json`, `package-lock.json` | `uuid` override; `aws-crt` and `@aws-sdk/signature-v4-crt` removed; `rimraf` moved to devDependencies; `audit:check` script |
+| `scripts/check-audit.mjs` | New: CI audit gate |
+| `scripts/audit-allowlist.json` | New: reviewed advisories with reasons |
+| `.github/workflows/auto-build.yml`, `.github/workflows/release.yml` | Actions pinned to SHAs; audit step |
+| `.github/dependabot.yml` | New: weekly npm and Actions updates |
