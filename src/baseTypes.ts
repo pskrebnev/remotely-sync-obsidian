@@ -193,6 +193,12 @@ export interface RemotelySavePluginSettings {
   pro?: ProConfig;
 
   /**
+   * Random id that prefixes this vault's entries in Obsidian's SecretStorage.
+   * Not a secret itself.
+   */
+  secretStorageNamespace?: string;
+
+  /**
    * @deprecated
    */
   agreeToUploadExtraMetadata?: boolean;

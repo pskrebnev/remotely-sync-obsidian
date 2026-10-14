@@ -945,3 +945,23 @@ export const redactSecrets = (x: any, seen = new WeakSet<object>()): any => {
   }
   return res;
 };
+
+/**
+ * Path of this plugin's own settings file inside the vault.
+ * It holds every credential, so it must never be synced in either direction.
+ */
+export const getOwnPluginDataFilePath = (configDir: string, pluginId: string) =>
+  `${configDir}/plugins/${pluginId}/data.json`;
+
+/**
+ * Leaves out entities whose (decrypted) key is in `hiddenKeys`.
+ */
+export const filterOutKeys = <T extends { key?: string }>(
+  entities: T[],
+  hiddenKeys: Set<string>
+): T[] => {
+  if (hiddenKeys.size === 0) {
+    return entities;
+  }
+  return entities.filter((e) => e.key === undefined || !hiddenKeys.has(e.key));
+};
