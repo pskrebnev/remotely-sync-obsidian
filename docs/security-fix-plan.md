@@ -1,8 +1,17 @@
 # Security Fix Plan
 
-Branch: `security-isues-fixing`
 Scope: `src/`, `pro/src/`, build config, `.github/workflows/`.
-Status: investigation only, no code changed yet.
+Status: plan; parts of #12 and #13 are done (PR #1). Each phase below gets its own branch off `master` and its own PR.
+
+## Fork context (updated)
+
+These facts about this fork change the priorities:
+
+- **Only S3 (including Cloudflare R2), WebDAV and Webdis can work in this fork's builds.** The repo has no GitHub secrets, so the build injects empty OAuth client IDs. That leaves Dropbox, OneDrive, OneDrive Full, Google Drive, Box, pCloud, Yandex Disk and Koofr unable to log in. PRO features also need upstream's paid server (`REMOTELYSAVE_WEBSITE`), which is empty too.
+- **The unusable backends are still attack surface.** All 10 `obsidian://` protocol handlers are registered, including the OAuth callbacks for those services (#3), and their token-handling code still ships.
+- **Target backend is Cloudflare R2**, through the S3 code path (`src/fsS3.ts`).
+
+So the cheapest big win is to **stop registering what can't work** (Phase 0) before hardening what's left.
 
 Severity: **Critical** = remote attacker can steal data/credentials with little user interaction; **High** = credential leak or integrity loss under realistic conditions; **Medium** = defense-in-depth gap; **Low** = hygiene.
 
@@ -23,11 +32,12 @@ Severity: **Critical** = remote attacker can steal data/credentials with little 
 | 9 | Medium | Plain `http://` allowed for S3, WebDAV, Webdis while sending Basic auth / signed requests | `src/fsS3.ts:225`, `src/fsWebdis.ts:78-101`, `src/fsWebdav.ts` |
 | 10 | Medium | "Output settings to console" debug button dumps decoded secrets | `src/settings.ts:2793-2802` |
 | 11 | Medium | QR/URI export embeds full credentials in a plain URL/QR image | `src/importExport.ts:12-77` |
-| 12 | Medium | Lockfiles are git-ignored; CI uses `npm install` with caret ranges (supply chain) | `.gitignore`, `.github/workflows/*.yml` |
-| 13 | Medium | `cla.yml` uses `pull_request_target` with a PAT, and actions pinned by tag, not SHA | `.github/workflows/cla.yml` |
-| 14 | Low | `stringToFragment` sets `innerHTML` from i18n strings | `src/misc.ts:521-525` |
+| 12 | Medium | Supply chain: no `npm audit` gate, 15 known vulnerable runtime deps (**partly done**: lockfile committed, CI uses `npm ci`) | `package.json`, `.github/workflows/*.yml` |
+| 13 | Medium | Actions pinned by tag, not SHA (**partly done**: `cla.yml` removed, explicit token permissions added) | `.github/workflows/*.yml` |
+| 14 | Low | `stringToFragment` sets `innerHTML` from i18n strings | `src/misc.ts:525-529` |
 | 15 | Low | Error notices echo raw provider responses / full URI params (may include tokens or codes) | `src/importExport.ts:113-140`, `src/main.ts:736,820` |
 | 16 | Low | Webdis keys built by string concatenation into the command URL | `src/fsWebdis.ts` |
+| 17 | High (blocker) | The sync engine is under PolyForm Strict (no changes allowed), so fixes #4 and #5 can't legally be applied to it | `pro/` (`pro/LICENSE`, `pro/src/sync.ts`) |
 
 ---
 
@@ -105,24 +115,37 @@ Also add a versioned header so methods can coexist, and a migration path ("re-en
 **Fix.** Optionally encrypt the export payload with a short passphrase or one-time code entered on the receiving device. Warn the user before showing the QR code. Never write the raw URI to logs.
 
 ### 12. Supply chain (Medium)
-**Fix.**
-- Remove `package-lock.json` from `.gitignore` and commit a lockfile.
-- Use `npm ci` in CI.
-- Run `npm audit --omit=dev` (and Dependabot or Renovate) in CI.
-- Review deprecated or unmaintained deps: `crypto-browserify`, `pcloud-sdk-js`, `aws-crt` (native and unused in the browser), `rimraf` (listed under runtime deps).
+**Done (PR #1).** `package-lock.json` is committed and CI uses `npm ci`.
+
+**Remaining.**
+- Add `npm audit --omit=dev --audit-level=high` to CI, plus Dependabot for npm and GitHub Actions.
+- Reduce the 15 runtime audit findings (4 low, 2 moderate, 9 high). Most come from the Box, pCloud and Azure SDKs (`proxy-agent`, `basic-ftp`, `@babel/cli`, `chokidar`), `crypto-browserify` (`elliptic`) and `@azure/msal-node` (`uuid`). If Phase 0 removes the backends this fork can't use, most of these packages disappear with them.
+- Review the remaining deps: `aws-crt` (native and unused in the browser) and `rimraf` (listed under runtime deps).
 
 ### 13. GitHub Actions hardening (Medium)
-**Fix.**
-- Pin third-party actions to commit SHAs.
-- Set minimal top-level `permissions: contents: read` and grant more per job.
-- In `cla.yml`, keep `pull_request_target`, but never check out PR code, and scope the PAT to the signatures repo only. If this fork doesn't need the CLA bot, delete the workflow.
-- Don't expose OAuth secrets to workflows triggered by PRs from forks.
+**Done (PR #1 and follow-ups).**
+- `cla.yml` (`pull_request_target` with a PAT) was removed.
+- Workflows declare `contents: read` (build) and `contents: write` (release).
+
+**Remaining.**
+- Pin `actions/*` and `softprops/action-gh-release` to commit SHAs. Dependabot (#12) keeps the pins updated.
+- If OAuth secrets are ever added to this repo, keep them in the `env-for-buildci` environment with required reviewers, so PRs from forks can't read them.
 
 ### 14. `innerHTML` helper (Low)
 **Fix.** The i18n JSON is trusted today. Still, either sanitize (allow-list `<a>`, `<b>`, `<br>`, `<code>`) or build these fragments with DOM APIs, so a future translation PR can't inject script.
 
 ### 15. Sensitive data in notices and errors (Low)
 **Fix.** Don't include `JSON.stringify(inputParams)` or `rsp` in Notices or thrown errors. Show a short message and put redacted details in the debug log.
+
+### 17. PolyForm-licensed sync engine (High, blocker)
+**Problem.** `LICENSE` puts everything under `pro/` under **PolyForm Strict 1.0.0**. That license allows noncommercial use and distributing unmodified copies, but **no changes or new works**. `pro/` includes not only the paid features but also the sync engine every backend uses: `pro/src/sync.ts` (2,094 lines), `localdb.ts`, `conflictLogic.ts` and `account.ts`, which `sync.ts` imports. Upstream moved the engine there from `src/` on 2024-06-12 (commit `9f67d41`).
+
+The fixes for #4 (path validation in `checkIsSkipItemOrNotByName` / sync planning) and #5 (excluding this plugin's own `data.json`) belong in `pro/src/sync.ts`, so they can't be applied while the engine stays under PolyForm. The type-only edits made in PR #1 to `pro/src/fsOnedriveFull.ts` and `pro/src/fsAzureBlobStorage.ts` are also, strictly read, changes the license doesn't permit. This is not legal advice.
+
+**Options** (decision deferred, see Phase 0):
+- **Full removal with the Apache engine:** delete `pro/`, restore the last Apache-licensed `src/sync.ts` (from `9f67d41^`, 1,718 lines) and port it to the current code. Everything becomes Apache 2.0. Cost: the 18 later upstream sync commits are lost or must be reimplemented, including push/pull with delete, config/bookmarks rules, allow-list mode, file-name validation and Smart Conflict refinements.
+- **Partial removal:** delete only the PRO features and leave the engine files unmodified. A smaller change, but #4 and #5 stay blocked.
+- **Workaround without touching `pro/`:** validate paths and exclude `data.json` in Apache-licensed code before it reaches the engine: in the `FakeFs` wrappers (`src/fsLocal.ts`, `src/fsEncrypt.ts`) and in the walk results. That's weaker than fixing the engine, but it partially closes #4 and #5.
 
 ### 16. Webdis command construction (Low)
 **Fix.** Always `encodeURIComponent` each key segment that is placed in the command path (some call sites do already), and add a test with keys containing `/`, `?`, `#`, and `%`.
@@ -144,15 +167,27 @@ Fixes are implemented and verified for **Cloudflare R2** first, then rolled out 
 
 **Rollout after R2 is done:** other S3-compatible services (AWS, MinIO, Backblaze) → WebDAV → Dropbox / OneDrive → Pro backends (Google Drive, Box, pCloud, Yandex, Koofr, Azure) → Webdis. Each backend gets the same path-safety tests and transport checks before its phase is closed.
 
-## Execution order
+## Execution order (updated)
 
 Each phase is finished and tested on **Cloudflare R2 first**, then extended to the remaining storages in the rollout order above.
 
-1. **Phase 1, quick wins (one PR):** #2, #10, #15 (remove/redact logs), #3 (`state` and pending-flow checks), #1 (confirmation modal and schema validation).
-2. **Phase 2, data integrity:** #4 (path validation and tests), #5 (exclude own `data.json`, warnings).
-3. **Phase 3, build and CI:** #12, #13, #8 (own OAuth apps, PKCE, rotate secrets).
-4. **Phase 4, crypto and storage (needs a migration design):** #6, #7, #11, #9.
-5. **Phase 5:** #14, #16.
+0. **Phase 0, PRO removal and attack surface (decision deferred):** PRO features are unusable in this fork (no account, no client IDs), and the owner wants them gone. How depends on #17:
+   - *Full removal with the Apache engine*, *partial removal*, or the *workaround* (see #17).
+   - Independently, Dropbox and OneDrive (free backends without client IDs) should register their OAuth handlers only when a client ID was set at build time. This closes #3 for them.
+
+   Removing the PRO backends also removes their SDKs (Box, pCloud, Azure, Google), which closes #8 and most of #12's audit findings.
+1. **Phase 1, R2 critical path (one PR):**
+   - #1: confirmation modal and schema validation for settings imports, highlighting S3 endpoint, bucket and key changes;
+   - #4: path validation, with tests against R2/MinIO listings;
+   - #2, #10, #15: remove or redact logged secrets;
+   - #9: require `https://` for S3 endpoints.
+2. **Phase 2, credentials and config sync:** #5 (always exclude this plugin's `data.json` from sync, with warnings) and #6 (secret storage for S3 keys and other credentials).
+3. **Phase 3, encryption (needs a migration design):** #7 (authenticated encryption, stronger key derivation, E2E on by default for new R2 setups) and #11 (encrypted QR/URI export).
+4. **Phase 4, CI and dependencies:** the rest of #12 and #13 (audit gate, Dependabot, SHA pinning).
+5. **Phase 5, remaining backends and low-severity items:**
+   - #3 and #8 for any OAuth backend kept by Phase 0 option A and later enabled (needs its own app registration);
+   - #9 for WebDAV and Webdis;
+   - #14 and #16.
 
 For each phase: add unit tests under `tests/` or `pro/tests/`, run `npm test` and `npm run build`, and test manually in a scratch vault, first against a throw-away Cloudflare R2 bucket (plus local MinIO), then against the other storages.
 
