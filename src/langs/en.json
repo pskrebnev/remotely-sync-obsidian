@@ -51,6 +51,7 @@
   "modal_importpassphrase_decrypt": "Decrypt",
   "settings_insecure_address": "Plain http:// sends your password and files unencrypted. Use https://, unless the server is on localhost or your private network.",
   "protocol_oauth_not_pending": "Ignored a login callback: no login was started from the plugin settings. If you did not open a login page just now, someone may have sent you a crafted link.",
+  "settings_onlyallowpaths_unsupported": "Allow lists are not supported by this version, so sync is paused while this list has entries. Clear it to sync; use \"Ignore paths\" to exclude files instead.",
   "protocol_import_invalid": "Settings were not imported: {{reason}}",
   "protocol_import_nochange": "The imported settings are the same as the current ones. Nothing changed.",
   "modal_importconfirm_title": "Review imported settings",

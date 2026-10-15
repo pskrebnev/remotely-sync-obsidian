@@ -28,6 +28,7 @@ Phases 1–5 are implemented with Cloudflare R2 and AWS S3 in mind. Full details
 | 7 | Done (rclone + salt) | Phase 3: per-vault random rclone salt published in `_remotely-save-encryption.json`; other devices adopt it; "Re-encrypt remote" converts legacy rclone and openssl vaults (publish salt → copy → verify → delete; resumable). Sync refuses to put plain files into an encrypted remote. rclone's scrypt cost is unchanged, to stay rclone-compatible. |
 | 10 | Done | "Output settings to console" now prints a redacted copy. |
 | 15 | Done (`src/`) | Import errors no longer echo the raw link. OAuth error notices and errors pass through `redactSecrets`. |
+| 17 | Done (option C) | `pro/` removed entirely; the sync engine was restored from the Apache-licensed v0.4.25; the repository is Apache 2.0 only. Features that existed only in PolyForm code were removed or are refused safely. See [security-changes.md](./security-changes.md#removal-of-pro-code). Git history still contains `pro/`. |
 | 3 | Done | Phase 5: OAuth callbacks are only registered when the service has a client ID (none in this fork's builds) and only act while a login started from the settings is in progress; the PRO `"verifier"` fallback is removed. |
 | 8 | Not applicable (documented) | This fork ships no OAuth client IDs/secrets. If own apps are added: PKCE public clients, secrets in a protected environment, rotate exposed ones. |
 | 14 | Done | Phase 5: `stringToFragment` keeps only the tags the translations use and `https://`/`#` links. |

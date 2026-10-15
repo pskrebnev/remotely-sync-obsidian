@@ -1,17 +1,4 @@
 {
   "comment": "Advisories accepted after review. Every entry needs a reason and a review date. CI fails on any other high/critical advisory in runtime dependencies. See docs/security-changes.md (Phase 4).",
-  "advisories": [
-    {
-      "url": "https://github.com/advisories/GHSA-c475-qrg2-pj4r",
-      "package": "basic-ftp",
-      "reason": "Node-only FTP client pulled in by box-typescript-sdk-gen -> proxy-agent -> get-uri. Not part of the plugin bundle (verified with webpack stats); the plugin never opens FTP connections. No fixed version exists. Goes away if the PRO backends are removed (#17).",
-      "reviewed": "2026-10-15"
-    },
-    {
-      "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
-      "package": "braces",
-      "reason": "Pulled in by pcloud-sdk-js, which wrongly lists the build tool @babel/cli as a runtime dependency (-> chokidar -> braces). Not part of the plugin bundle (verified with webpack stats). No fixed version exists. Goes away if the PRO backends are removed (#17).",
-      "reviewed": "2026-10-15"
-    }
-  ]
+  "advisories": []
 }
