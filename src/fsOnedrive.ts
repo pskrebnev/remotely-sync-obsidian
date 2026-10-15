@@ -1,4 +1,3 @@
-import { CryptoProvider, PublicClientApplication } from "@azure/msal-node";
 import type { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
 import type {
   DriveItem,
@@ -20,6 +19,7 @@ import {
 import { VALID_REQURL } from "./baseTypesObs";
 import { FakeFs } from "./fsAll";
 import { bufferToArrayBuffer } from "./misc";
+import { generatePkceCodes } from "./oauthPkce";
 
 const SCOPES = ["User.Read", "Files.ReadWrite.AppFolder", "offline_access"];
 const REDIRECT_URI = `obsidian://${COMMAND_CALLBACK_ONEDRIVE}`;
@@ -46,32 +46,20 @@ export async function getAuthUrlAndVerifier(
   clientID: string,
   authority: string
 ) {
-  const cryptoProvider = new CryptoProvider();
-  const { verifier, challenge } = await cryptoProvider.generatePkceCodes();
+  const { verifier, challenge } = await generatePkceCodes();
 
-  const pkceCodes = {
-    challengeMethod: "S256", // Use SHA256 Algorithm
-    verifier: verifier,
-    challenge: challenge,
-  };
-
-  const authCodeUrlParams = {
-    redirectUri: REDIRECT_URI,
-    scopes: SCOPES,
-    codeChallenge: pkceCodes.challenge, // PKCE Code Challenge
-    codeChallengeMethod: pkceCodes.challengeMethod, // PKCE Code Challenge Method
-  };
-
-  const pca = new PublicClientApplication({
-    auth: {
-      clientId: clientID,
-      authority: authority,
-    },
-  });
-  const authCodeUrl = await pca.getAuthCodeUrl(authCodeUrlParams);
+  // https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow#request-an-authorization-code
+  const authUrl = new URL(`${authority}/oauth2/v2.0/authorize`);
+  authUrl.searchParams.set("client_id", clientID);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
+  authUrl.searchParams.set("response_mode", "query");
+  authUrl.searchParams.set("scope", SCOPES.join(" "));
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
 
   return {
-    authUrl: authCodeUrl,
+    authUrl: authUrl.toString(),
     verifier: verifier,
   };
 }

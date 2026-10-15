@@ -12,6 +12,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 | [Phase 4](#phase-4-ci-and-dependencies) | CI audit gate, Dependabot, SHA-pinned actions, fewer vulnerable dependencies | Done |
 | [Phase 5](#phase-5-other-backends-and-low-severity-items) | OAuth callbacks gated, https for WebDAV/Webdis, more credentials in secret storage, HTML sanitizing, Webdis escaping | Done |
 | [Removal of PRO code](#removal-of-pro-code) | PolyForm-licensed `pro/` removed; sync engine restored from the Apache-licensed v0.4.25 | Done |
+| [Dependency cleanup](#dependency-cleanup) | `npm audit`: 0 vulnerabilities; OneDrive login without `msal-node`; no `crypto` polyfill | Done |
 
 ---
 
@@ -535,3 +536,32 @@ These were added by the original project **after** v0.4.25 and exist only as Pol
   - `tests/removedFeatures.test.ts` covers the migrations and refusals (4 new).
 
   99 tests pass. Typecheck, lint, audit gate and production build are clean. **Writing new engine tests and testing sync manually against R2 are the most important next steps.**
+
+---
+
+## Dependency cleanup
+
+Branch: `fix-npm-audit`. A plain `npm ci` printed **8 vulnerabilities (4 high, 4 low)** and several deprecation warnings. CI's audit gate only checks runtime dependencies, so it didn't show the dev-tool findings. **Now `npm audit` reports 0 vulnerabilities**, for dev and runtime dependencies alike.
+
+| Before | Cause | Fix |
+|---|---|---|
+| 4 high (`mocha`, `serialize-javascript`, `chokidar`, `braces`) and the `glob@8` warning | **mocha 10**, the test runner | mocha **12** (dev only; tests unchanged) |
+| `whatwg-encoding` warning | **jsdom 24**, used only in tests | jsdom **30**, `@types/jsdom` 30 |
+| 4 low (`elliptic` via `browserify-sign`, `create-ecdh`, `crypto-browserify`) | The `crypto-browserify` polyfill, **bundled into the plugin**, needed only by `@azure/msal-node` and its `jsonwebtoken`/`jwa` | Removed `@azure/msal-node` and `crypto-browserify`; webpack's `crypto` fallback is now `false` |
+
+### OneDrive login without `msal-node`
+
+The plugin used `msal-node`, a Node library, for two things only: generating the PKCE verifier and challenge, and building the Microsoft authorize URL. The token exchange already used plain requests.
+- **PKCE:** now `src/oauthPkce.ts`, a small implementation of RFC 7636 using the browser's WebCrypto. A random 32-byte verifier gives 43 characters, and the S256 challenge is computed from it. It's checked against the RFC's own example vector in `tests/oauthPkce.test.ts`.
+- **Authorize URL:** `getAuthUrlAndVerifier` (`src/fsOnedrive.ts`) builds the documented URL directly: `{authority}/oauth2/v2.0/authorize` with `client_id`, `response_type=code`, `redirect_uri`, `response_mode=query`, `scope`, `code_challenge` and `code_challenge_method=S256`. The scopes are unchanged and already include `offline_access`, so refresh tokens still work.
+
+This also removes the network request msal made to Microsoft's metadata endpoint before every login. **Not tested against a real Microsoft account:** this fork's builds have no OneDrive client ID, so OneDrive login needs your own app registration anyway.
+
+Side effects:
+- the plugin bundle shrank from 2.3 MB to **1.5 MB**;
+- `uuid` left the dependency tree, so its override was removed.
+
+### Remaining notes (not vulnerabilities)
+
+- **`npm warn deprecated node-domexception`**. This comes from `webdav` → `node-fetch` → `fetch-blob`. `webdav` 5.11.0 is the latest version and still depends on it. It isn't in the plugin bundle, because `webdav`'s browser build uses the built-in `fetch`.
+- **`npm warn install-scripts … blocked`** (npm 12 and later). npm now asks before running packages' install scripts. They aren't needed for `npm run build`. Allow them with `npm install-scripts approve <package>` if you want the optional binaries checked: `esbuild`, `@biomejs/biome`, and `fsevents` on macOS.

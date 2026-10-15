@@ -78,8 +78,8 @@ module.exports = {
       // buffer: require.resolve("buffer/"),
       // console: require.resolve("console-browserify"),
       // constants: require.resolve("constants-browserify"),
-      crypto: require.resolve("crypto-browserify"),
-      // crypto: false,
+      // nothing in the bundle needs Node's crypto: WebCrypto is used instead
+      crypto: false,
       // domain: require.resolve("domain-browser"),
       // events: require.resolve("events"),
       fs: false,
