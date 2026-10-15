@@ -82,7 +82,7 @@ Then copy `main.js`, `manifest.json` and `styles.css` into
 3. Save the **Access Key ID** and **Secret Access Key** shown after creation. The secret is shown only once.
 4. Note your **endpoint**: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`. It's shown on the token page and in the bucket settings.
 
-More screenshots: [docs/remote_services/s3_cloudflare_r2](./remote_services/s3_cloudflare_r2/README.md).
+**Complete Cloudflare R2 walkthrough** (token permissions, every setting, troubleshooting): [docs/remote_services/s3_cloudflare_r2](./remote_services/s3_cloudflare_r2/README.md).
 
 ### AWS S3
 
