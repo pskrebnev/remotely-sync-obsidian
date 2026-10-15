@@ -1,10 +1,8 @@
-import type { RemotelySavePluginSettings } from "./baseTypes";
+import type { CloudSyncPluginSettings } from "./baseTypes";
 
 /**
- * This fork removed the PRO code (PolyForm Strict licensed) and uses the
- * Apache-licensed sync engine of v0.4.25. Some settings written by newer
- * versions belong to features that engine does not have.
- * See docs/security-changes.md ("Removal of PRO code").
+ * Settings this plugin's sync engine does not support. They can still reach
+ * the settings through an imported settings link.
  */
 
 const SUPPORTED_SERVICES = new Set([
@@ -14,6 +12,8 @@ const SUPPORTED_SERVICES = new Set([
   "onedrive",
   "webdis",
 ]);
+
+const SUPPORTED_CONFLICT_ACTIONS = new Set(["keep_newer", "keep_larger"]);
 
 const SUPPORTED_SYNC_DIRECTIONS = new Set([
   "bidirectional",
@@ -26,19 +26,22 @@ const SUPPORTED_SYNC_DIRECTIONS = new Set([
  * Mutates `settings`.
  */
 export const migrateRemovedFeatureSettings = (
-  settings: RemotelySavePluginSettings
+  settings: CloudSyncPluginSettings
 ): string[] => {
   const messages: string[] = [];
   const s = settings as any;
-  if (s.conflictAction === "smart_conflict") {
-    s.conflictAction = "keep_newer";
+  if (
+    s.conflictAction !== undefined &&
+    !SUPPORTED_CONFLICT_ACTIONS.has(s.conflictAction)
+  ) {
     messages.push(
-      `"Smart conflict" (a PRO feature) was removed; conflict handling is now "keep newer".`
+      `Conflict handling "${s.conflictAction}" is not supported; it is now "keep newer".`
     );
+    s.conflictAction = "keep_newer";
   }
   if (!SUPPORTED_SERVICES.has(s.serviceType)) {
     messages.push(
-      `The remote service "${s.serviceType}" (a PRO feature) was removed; the service is now S3. Check your settings before syncing.`
+      `The remote service "${s.serviceType}" is not supported; the service is now S3. Check your settings before syncing.`
     );
     s.serviceType = "s3";
   }
@@ -57,7 +60,7 @@ export const migrateRemovedFeatureSettings = (
  * Sync refuses to run while one of these is set.
  */
 export const getUnsupportedSyncSettingsReason = (
-  settings: RemotelySavePluginSettings
+  settings: CloudSyncPluginSettings
 ): string | undefined => {
   const s = settings as any;
   if ((s.onlyAllowPaths ?? []).length > 0) {

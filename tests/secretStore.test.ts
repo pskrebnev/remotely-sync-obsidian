@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import type { RemotelySavePluginSettings } from "../src/baseTypes";
+import type { CloudSyncPluginSettings } from "../src/baseTypes";
 import {
   type SecretBackend,
   fillSecretsFromBackend,
@@ -40,17 +40,17 @@ const makeSettings = () =>
     },
     password: "e2e-pass",
     serviceType: "s3",
-  }) as unknown as RemotelySavePluginSettings;
+  }) as unknown as CloudSyncPluginSettings;
 
 describe("Secret storage", () => {
   it("should build valid SecretStorage ids", () => {
     assert.equal(
       secretIdFor("abc123", ["s3", "s3SecretAccessKey"]),
-      "remotely-save-abc123-s3-s3-secret-access-key"
+      "cloud-sync-abc123-s3-s3-secret-access-key"
     );
     assert.equal(
       secretIdFor("abc123", ["password"]),
-      "remotely-save-abc123-password"
+      "cloud-sync-abc123-password"
     );
   });
 
@@ -149,7 +149,7 @@ describe("Secret storage", () => {
         refreshToken: "od-rt",
         clientID: "cid",
       },
-    } as unknown as RemotelySavePluginSettings;
+    } as unknown as CloudSyncPluginSettings;
     const onDisk = splitSecretsForDisk(settings, backend) as any;
     for (const [section, key] of [
       ["webdav", "password"],

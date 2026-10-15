@@ -8,7 +8,7 @@ import type { FakeFs } from "./fsAll";
  * The salt is not secret: without the password it is useless.
  * It is rclone's "password2", so the bucket stays readable by rclone.
  */
-export const ENCRYPTION_PARAMS_FILE = "_remotely-save-encryption.json";
+export const ENCRYPTION_PARAMS_FILE = "_cloud-sync-encryption.json";
 
 export interface EncryptionParams {
   version: 1;
@@ -51,7 +51,7 @@ export const serializeEncryptionParams = (p: EncryptionParams) =>
       version: p.version,
       method: p.method,
       salt: p.salt,
-      note: "Encryption parameters for Remotely Save (not secret). The salt is rclone's password2.",
+      note: "Encryption parameters for Cloud Sync (not secret). The salt is rclone's password2.",
     },
     null,
     2

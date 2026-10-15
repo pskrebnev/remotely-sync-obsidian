@@ -2,7 +2,7 @@
 
 The encryption is compatible with RClone Crypt with **base64** name encryption format.
 
-It's developed based on another js project by the same author of Remotely Save: [`@fyears/rclone-crypt`](https://github.com/fyears/rclone-crypt), which is NOT an official library from RClone, and is NOT affiliated with RClone.
+It uses the JavaScript library [`@fyears/rclone-crypt`](https://github.com/fyears/rclone-crypt), which is NOT an official library from RClone, and is NOT affiliated with RClone.
 
 Reasonable tests are also ported from official RClone code, to ensure the compatibility and correctness of the encryption.
 
@@ -27,14 +27,14 @@ Finally, a working config file should like this:
 ```ini
 [webdav1]
 type = webdav
-url = https://example.com/sharefolder1/subfolder1 # the same as the web address in Remotely Save settings.
+url = https://example.com/sharefolder1/subfolder1 # the same as the web address in Cloud Sync settings.
 vendor = other
 user = <some webdav username>
 pass = <some webdav password, obfuscated>
 
 [webdav1crypt]
 type = crypt
-remote = nas1test:vaultname # the same as your "Remote Base Directory" (usually the vault name) in Remotely Save settings
+remote = nas1test:vaultname # the same as your "Remote Base Directory" (usually the vault name) in Cloud Sync settings
 password = <some encryption password, obfuscated>
 filename_encoding = base64 # don't forget this!!!
 ```

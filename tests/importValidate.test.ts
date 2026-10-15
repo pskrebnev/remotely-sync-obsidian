@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import type { RemotelySavePluginSettings } from "../src/baseTypes";
+import type { CloudSyncPluginSettings } from "../src/baseTypes";
 import {
   applyImportedSettings,
   sanitizeImportedSettings,
@@ -27,7 +27,7 @@ const makeDefaults = () =>
     lang: "auto",
     syncConfigDir: false,
     ignorePaths: [],
-  }) as unknown as RemotelySavePluginSettings;
+  }) as unknown as CloudSyncPluginSettings;
 
 const makeCurrent = () => {
   const c = makeDefaults() as any;
@@ -35,7 +35,7 @@ const makeCurrent = () => {
   c.s3.s3BucketName = "my-vault";
   c.s3.s3SecretAccessKey = "my-secret";
   c.dropbox.refreshToken = "keep-me";
-  return c as RemotelySavePluginSettings;
+  return c as CloudSyncPluginSettings;
 };
 
 describe("Import settings: sanitizeImportedSettings", () => {

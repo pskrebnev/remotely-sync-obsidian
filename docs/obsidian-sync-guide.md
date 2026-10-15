@@ -41,7 +41,7 @@ With **end-to-end encryption**, files and file names are encrypted on your devic
 
 ## 3. Install the plugin
 
-This fork uses the plugin ID `remotely-save`, the same as the original plugin. **Disable and remove the original "Remotely Save" plugin first**, so the two don't overwrite each other.
+The plugin ID is `cloud-sync`, so it is installed in `<vault>/.obsidian/plugins/cloud-sync/`. Don't run another sync plugin on the same vault at the same time.
 
 ### Option A: from a GitHub release (desktop and mobile)
 
@@ -55,7 +55,7 @@ On each device:
 
 1. Install the **[BRAT](https://github.com/TfTHacker/obsidian42-brat)** plugin from Obsidian's community plugins.
 2. In BRAT, choose *Add beta plugin* and enter `pskrebnev/remotely-sync-obsidian`.
-3. Enable **Remotely Save** under *Settings → Community plugins*.
+3. Enable **Cloud Sync** under *Settings → Community plugins*.
 
 BRAT also keeps the plugin updated when you publish new releases. This is the easiest way to install on phones and tablets.
 
@@ -69,7 +69,7 @@ npm run build
 ```
 
 Then copy `main.js`, `manifest.json` and `styles.css` into
-`<your vault>/.obsidian/plugins/remotely-save/` (create the folder if needed), restart Obsidian, and enable **Remotely Save** under *Settings → Community plugins*. *Restricted mode* must be off.
+`<your vault>/.obsidian/plugins/cloud-sync/` (create the folder if needed), restart Obsidian, and enable **Cloud Sync** under *Settings → Community plugins*. *Restricted mode* must be off.
 
 ## 4. Create the storage
 
@@ -97,7 +97,7 @@ The plugin's *Bypass CORS Issue Locally* setting (on by default) uses Obsidian's
 
 ## 5. Connect the plugin
 
-Open *Settings → Remotely Save*:
+Open *Settings → Cloud Sync*:
 
 1. **Choose A Remote Service:** `S3 or compatible`.
 2. Fill in:
@@ -123,14 +123,14 @@ Do this **before the first sync**, while the bucket is still empty:
 1. Under **Basic Settings → Encryption Password**, enter a long, unique password and confirm it.
 2. Keep **Encryption Method** at `RClone Crypt (recommended)`, the default.
 
-On the first sync, the plugin generates a random **per-vault salt** and stores it in a small unencrypted file in the bucket, `_remotely-save-encryption.json`. A salt isn't a secret; other devices read it automatically. Your files and file names are encrypted on the device, in the rclone format, so the bucket can even be read with the `rclone` command-line tool (`password` = your password, `password2` = the salt).
+On the first sync, the plugin generates a random **per-vault salt** and stores it in a small unencrypted file in the bucket, `_cloud-sync-encryption.json`. A salt isn't a secret; other devices read it automatically. Your files and file names are encrypted on the device, in the rclone format, so the bucket can even be read with the `rclone` command-line tool (`password` = your password, `password2` = the salt).
 
 **If you lose the password, the data in the bucket can't be decrypted.** Store it in a password manager. Your local copies are not affected.
 
 ## 7. First sync
 
-1. Optional but recommended: run the command **"Remotely Save: start sync (dry run only)"** from the command palette. It shows what *would* happen without changing anything.
-2. Click the **sync icon** in the left ribbon, or run **"Remotely Save: start sync"**. The first sync uploads everything, so be patient.
+1. Optional but recommended: run the command **"Cloud Sync: start sync (dry run only)"** from the command palette. It shows what *would* happen without changing anything.
+2. Click the **sync icon** in the left ribbon, or run **"Cloud Sync: start sync"**. The first sync uploads everything, so be patient.
 3. Optional: under **Basic Settings**, set up **Schedule For Auto Run** (for example every 5 minutes), **Run Once On Start Up Automatically**, and **Sync On Save**.
 
 ## 8. Add another device
@@ -157,7 +157,7 @@ The plugin's own settings file is **never** synced, even with config-folder sync
 
 ## 10. Upgrade an existing encrypted bucket
 
-Buckets encrypted by an older version (without `_remotely-save-encryption.json`) keep working, but they use rclone's built-in salt, or the weaker openssl method. To upgrade:
+Buckets encrypted by an older version (without `_cloud-sync-encryption.json`) keep working, but they use rclone's built-in salt, or the weaker openssl method. To upgrade:
 
 1. Make sure every device is synced and no device is offline with unsynced changes.
 2. On one device, open **Basic Settings → Re-encrypt remote** and click **Re-encrypt**, then **Start re-encryption**.

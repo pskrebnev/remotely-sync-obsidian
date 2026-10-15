@@ -13,6 +13,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 | [Phase 5](#phase-5-other-backends-and-low-severity-items) | OAuth callbacks gated, https for WebDAV/Webdis, more credentials in secret storage, HTML sanitizing, Webdis escaping | Done |
 | [Removal of PRO code](#removal-of-pro-code) | PolyForm-licensed `pro/` removed; sync engine restored from the Apache-licensed v0.4.25 | Done |
 | [Dependency cleanup](#dependency-cleanup) | `npm audit`: 0 vulnerabilities; OneDrive login without `msal-node`; no `crypto` polyfill | Done |
+| [Rebrand to Cloud Sync](#rebrand-to-cloud-sync) | New name and ID; no references to the original project or PRO in the compiled plugin; network audit | Done |
 
 ---
 
@@ -22,7 +23,7 @@ Branch: `security-update-phase1`. Fixes #1, #2, #9 (S3), #10 and #15, and partly
 
 ### 1. Settings import links are validated and confirmed (#1, Critical)
 
-**Before.** Opening an `obsidian://remotely-save?func=settings&...` link, or pasting one into *Import*, immediately overwrote the plugin settings with whatever JSON the link contained. The only check was the vault name, which is easy to guess. Someone could send you a link that points sync at *their* R2/S3 bucket and turns on auto sync, and your vault would then upload to them.
+**Before.** Opening an `obsidian://cloud-sync?func=settings&...` link, or pasting one into *Import*, immediately overwrote the plugin settings with whatever JSON the link contained. The only check was the vault name, which is easy to guess. Someone could send you a link that points sync at *their* R2/S3 bucket and turns on auto sync, and your vault would then upload to them.
 
 **Now.**
 - **Validation** (`src/importValidate.ts`, `sanitizeImportedSettings`):
@@ -122,7 +123,7 @@ Branch: `security-update-phase2`. Fixes #6 for the S3 (R2/AWS) keys and the end-
 
 ### 1. This plugin's `data.json` is never synced, in either direction (#5, High)
 
-**Before.** With *Sync config dir* on, `.obsidian/plugins/remotely-save/data.json` was explicitly included in sync (`isLikelyPluginSubFiles` in `src/obsFolderLister.ts`). That file holds every credential: S3 keys, the encryption password and OAuth tokens. It was uploaded to the bucket, in plain text when end-to-end encryption was off. In the other direction, a `data.json` planted in the bucket would be downloaded over your local settings, silently pointing sync at someone else's storage.
+**Before.** With *Sync config dir* on, `.obsidian/plugins/cloud-sync/data.json` was explicitly included in sync (`isLikelyPluginSubFiles` in `src/obsFolderLister.ts`). That file holds every credential: S3 keys, the encryption password and OAuth tokens. It was uploaded to the bucket, in plain text when end-to-end encryption was off. In the other direction, a `data.json` planted in the bucket would be downloaded over your local settings, silently pointing sync at someone else's storage.
 
 **Now.** Three independent layers, all keyed on `getOwnPluginDataFilePath(configDir, pluginId)` (`src/misc.ts`):
 - **Local listing:** `listFilesInObsFolder` (`src/obsFolderLister.ts`) no longer lists the file, so it's never uploaded.
@@ -138,7 +139,7 @@ Other plugins' `data.json` files are still synced as before. Users who enable co
 
 **What users notice.**
 - This plugin's settings no longer travel between devices through config sync. Set up each device yourself, or use *Export / Import settings* (QR code), which now goes through the Phase 1 confirmation dialog.
-- A `data.json` that an earlier version uploaded **stays in the bucket** (it's just ignored now). Delete `.obsidian/plugins/remotely-save/data.json` from the bucket. With end-to-end encryption on, its remote name is encrypted, so remove it from a device that still has the old version, or rotate the keys it contained.
+- A `data.json` that an earlier version uploaded **stays in the bucket** (it's just ignored now). Delete `.obsidian/plugins/cloud-sync/data.json` from the bucket. With end-to-end encryption on, its remote name is encrypted, so remove it from a device that still has the old version, or rotate the keys it contained.
 
 ### 2. R2/S3 keys and the encryption password move to Obsidian's secret storage (#6, High)
 
@@ -148,7 +149,7 @@ Other plugins' `data.json` files are still synced as before. Users who enable co
 - **Where secrets go:** on Obsidian **1.11.4 or newer**, which provides `app.secretStorage`, these fields are stored in Obsidian's secret storage instead of `data.json`:
   - `s3.s3AccessKeyID` and `s3.s3SecretAccessKey`;
   - `password` (the end-to-end encryption password).
-- **What stays in `data.json`:** an empty string in place of each moved field, plus `secretStorageNamespace`. That's a random 12-character id prefixing this vault's entries (for example `remotely-save-<ns>-s3-s3-secret-access-key`) so vaults don't collide. It isn't a secret.
+- **What stays in `data.json`:** an empty string in place of each moved field, plus `secretStorageNamespace`. That's a random 12-character id prefixing this vault's entries (for example `cloud-sync-<ns>-s3-s3-secret-access-key`) so vaults don't collide. It isn't a secret.
 - **Migration is automatic.** The plugin already saves settings at the end of loading, so keys already in `data.json` move on the first start after updating. While a value is still on disk, the disk value wins.
 - **No credential can be lost.**
   - If secret storage is missing (older Obsidian) or a write fails, the value stays in `data.json` exactly as before.
@@ -180,7 +181,7 @@ These haven't been run yet. Use a throw-away vault and bucket.
 1. **Migration:** with an R2 or AWS configuration in `data.json`, start Obsidian 1.11.4+ with this build. Sync still works, and `data.json` shows `"s3AccessKeyID": ""`, `"s3SecretAccessKey": ""` and a `secretStorageNamespace`. If obfuscation is on, check with *Output settings to console*. Restart, and sync still works.
 2. **Config sync:**
    - turn on *Sync config dir* without a password, and the ⚠ warning appears;
-   - sync, and `.obsidian/plugins/remotely-save/data.json` is **not** uploaded;
+   - sync, and `.obsidian/plugins/cloud-sync/data.json` is **not** uploaded;
    - upload a fake `data.json` to that path in the bucket and sync, and local settings are unchanged.
 3. **Older Obsidian (if available):** keys stay in `data.json` and sync works.
 
@@ -218,7 +219,7 @@ Decisions taken for this phase:
   - `CipherRclone` and `FakeFsEncrypt` take a salt (`src/encryptRClone.ts`, `src/fsEncrypt.ts`).
   - The salt is a random 24-byte value, base64url-encoded (`newEncryptionSalt`).
   - It is exactly rclone's `password2`, so a salted bucket can still be read with the rclone CLI (set `password2` to the salt).
-- **Where it lives:** a small **plain** file in the remote root, `_remotely-save-encryption.json` (`src/encryptionParams.ts`), and in the setting `encryptionSalt`. A salt isn't secret; without the password it's useless. The file is never treated as a vault file: `FakeFsEncrypt` skips it in every walk.
+- **Where it lives:** a small **plain** file in the remote root, `_cloud-sync-encryption.json` (`src/encryptionParams.ts`), and in the setting `encryptionSalt`. A salt isn't secret; without the password it's useless. The file is never treated as a vault file: `FakeFsEncrypt` skips it in every walk.
 - **Which salt a sync uses** (`decideEncryptionSalt`, called by `resolveEncryptionSalt` in `src/main.ts` before every sync):
   - **New encrypted setups** (password set, rclone, empty remote) create a salt and publish the file before the first upload.
   - **Other devices** read the file and **adopt** the salt (and the method, if it was converted from openssl) automatically, with a notice.
@@ -234,7 +235,7 @@ Decisions taken for this phase:
 2. **Classify every raw remote object** by trying to decrypt its name with the old and the new key.
    - Names that decrypt with neither key **stop the run before anything changes**.
    - A name can (rarely) decrypt under both keys. File contents are authenticated, so for files the content decides. Such folders are left alone.
-3. **Publish the new salt** (`_remotely-save-encryption.json`). From this moment other devices switch to the new key, and their syncs stop with a decryption error instead of writing old-format files that would be lost. They continue on their own once the run finishes.
+3. **Publish the new salt** (`_cloud-sync-encryption.json`). From this moment other devices switch to the new key, and their syncs stop with a decryption error instead of writing old-format files that would be lost. They continue on their own once the run finishes.
 4. **Write every object in the new format** (folders first). The content comes from **this device** when it has the file, otherwise from the **old remote object**, so files that exist only in the bucket are kept.
 5. **Verify** that every object now exists in the new format. **Only then delete** the old objects (files first, then folders from deep to shallow).
 6. Switch this device's settings to rclone + new salt.
@@ -246,7 +247,7 @@ Other details:
 
 ### 3. Settings exports are passphrase-encrypted (#11)
 
-**Before.** *Export settings* produced an `obsidian://remotely-save?...&data=<JSON>` link and QR code with every key and password in clear text. Anyone who saw a screenshot or chat message had full access to the bucket.
+**Before.** *Export settings* produced an `obsidian://cloud-sync?...&data=<JSON>` link and QR code with every key and password in clear text. Anyone who saw a screenshot or chat message had full access to the bucket.
 
 **Now** (`src/exportCrypto.ts`, `src/importExport.ts`):
 - **Exporting:** the dialog asks for a passphrase of at least 8 characters before showing anything. The payload is encrypted with **AES-256-GCM** (random 16-byte salt and 12-byte IV), with the key from **PBKDF2-SHA256 at 600,000 iterations** (OWASP 2023). The link carries `enc=1`.
@@ -274,7 +275,7 @@ Result: 109 tests pass. Typecheck, lint and production build are clean.
 
 These haven't been run yet. Use a throw-away vault and an R2 or S3 bucket.
 
-1. **New setup:** with an empty bucket, set a password (rclone) and sync. `_remotely-save-encryption.json` appears with a salt. Check that `rclone ls` with `password2` = that salt lists the files.
+1. **New setup:** with an empty bucket, set a password (rclone) and sync. `_cloud-sync-encryption.json` appears with a salt. Check that `rclone ls` with `password2` = that salt lists the files.
 2. **Second device:** same password, sync. A notice says the encryption settings were adopted, and files sync.
 3. **Legacy vault:** with a bucket encrypted by the previous version (no params file), sync still works. Run *Re-encrypt remote*:
    - the progress counter runs;
@@ -376,7 +377,7 @@ Branch: `security-update-phase5`. Fixes #3, #9 (WebDAV/Webdis), #14 and #16, ext
 
 ### 1. OAuth login callbacks are gated (#3, High)
 
-**Before.** All OAuth callbacks were always registered: Dropbox, OneDrive, OneDrive Full, PRO, Box, pCloud, Yandex Disk and Koofr. Any `obsidian://remotely-save-cb-…?code=…` link could trigger them.
+**Before.** All OAuth callbacks were always registered: Dropbox, OneDrive, OneDrive Full, PRO, Box, pCloud, Yandex Disk and Koofr. Any `obsidian://cloud-sync-cb-…?code=…` link could trigger them.
 - The Dropbox/OneDrive checks (`verifier !== undefined`) still passed after a finished login, because the verifier is reset to `""`, not `undefined`.
 - The PRO callback ran even with no login in progress, falling back to the literal verifier `"verifier"`.
 - An attacker could use this to connect your plugin to *their* cloud account (login CSRF), and your vault would then sync into their storage.
@@ -445,7 +446,7 @@ Nothing is shipped: this fork's repository has no OAuth secrets, so every `DEFAU
 
 These haven't been run yet.
 
-1. **OAuth callbacks:** open `obsidian://remotely-save-cb-dropbox?code=x` in a browser. Nothing happens in this fork's build, because the callback isn't registered.
+1. **OAuth callbacks:** open `obsidian://cloud-sync-cb-dropbox?code=x` in a browser. Nothing happens in this fork's build, because the callback isn't registered.
 2. **WebDAV:** `http://dav.example.com` shows the warning and *Check connectivity* fails with the "refusing plain http" error. `https://…` and `http://192.168.x.x` work.
 3. **Settings UI:** the settings texts with links and bold text (encryption method, PRO, debug) still look as before.
 4. **Secret storage:** with a WebDAV password set, `data.json` shows `"password": ""` under `webdav` after a restart, and sync works.
@@ -565,3 +566,45 @@ Side effects:
 
 - **`npm warn deprecated node-domexception`**. This comes from `webdav` → `node-fetch` → `fetch-blob`. `webdav` 5.11.0 is the latest version and still depends on it. It isn't in the plugin bundle, because `webdav`'s browser build uses the built-in `fetch`.
 - **`npm warn install-scripts … blocked`** (npm 12 and later). npm now asks before running packages' install scripts. They aren't needed for `npm run build`. Allow them with `npm install-scripts approve <package>` if you want the optional binaries checked: `esbuild`, `@biomejs/biome`, and `fsevents` on macOS.
+
+---
+
+## Rebrand to Cloud Sync
+
+Branch: `rebrand-cloud-sync`. The plugin is now a personal project under its own name.
+
+### Name, ID and metadata
+
+- **Name and ID:** display name **Cloud Sync**, plugin ID **`cloud-sync`**. It installs into `.obsidian/plugins/cloud-sync/`, and its commands are "Cloud Sync: …".
+- **`manifest.json` / `manifest-beta.json`:** new description, author `pskrebnev`, `authorUrl` pointing to your GitHub profile. The original author and the funding link (`remotelysave.com`) are removed.
+- **`package.json`:** name `cloud-sync`, new description and author.
+
+### Compiled files contain no references to the original project or PRO
+
+`main.js`, `manifest.json` and `styles.css` were scanned after the build. They contain no references to the original repository, its author, `remotelysave.com`, the donation link or PRO features.
+- **Help texts:** links to the original repository's docs now point to this repository's docs. The link to an upstream issue (Linux) was unwrapped to plain text. The "star the repo / buy me a coffee" line was removed from the welcome text in all languages.
+- **`styles.css`:** 37 rules for the removed PRO services were deleted.
+- **Settings texts:** the "with delete" sync directions are no longer described. Migration notices no longer mention PRO, and the obsolete list of PRO settings sections was removed.
+
+### Internal names (all renamed)
+
+| Before | After |
+|---|---|
+| `obsidian://remotely-save`, `remotely-save-cb`, `-cb-dropbox`, `-cb-onedrive` | `obsidian://cloud-sync`, `cloud-sync-cb`, … |
+| Bucket files `_remotely-save-metadata-on-remote.json/.bin`, `_remotely-save-encryption.json` | `_cloud-sync-metadata-on-remote.json/.bin`, `_cloud-sync-encryption.json` |
+| Local database `remotelysavedb` | `cloudsyncdb` |
+| Secret-storage keys `remotely-save-<ns>-…` | `cloud-sync-<ns>-…` |
+| Debug folder `_debug_remotely_save/` | `_debug_cloud_sync/` |
+| Code identifiers `RemotelySavePlugin…`, `REMOTELY_SAVE_VERSION_*` | `CloudSyncPlugin…`, `LEGACY_VERSION_*` |
+
+**Consequence:** it's a clean start. Settings, sync history and secrets of an earlier install aren't picked up, and buckets created by the original plugin aren't recognized. Use a new, empty bucket, as the [guide](./obsidian-sync-guide.md) describes.
+
+### Attribution
+
+The Apache License 2.0 requires keeping attribution to the original work. That's the only remaining reference: one sentence in `LICENSE` (source only, not part of the compiled plugin). The npm dependency names `@fyears/rclone-crypt` and `@fyears/tsqueue` are real package names and stay as they are; they don't appear in `main.js`.
+
+### Network audit
+
+See [privacy-and-network.md](./privacy-and-network.md):
+- the plugin only connects to the storage you configure (and to Dropbox/Microsoft when those are selected and connected);
+- there is no tracking, analytics, telemetry or update check.

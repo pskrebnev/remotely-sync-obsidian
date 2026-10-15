@@ -1,4 +1,4 @@
-import type { RemotelySavePluginSettings } from "./baseTypes";
+import type { CloudSyncPluginSettings } from "./baseTypes";
 
 /**
  * Credentials are kept in Obsidian's SecretStorage (Obsidian 1.11.4+)
@@ -37,7 +37,7 @@ export const secretIdFor = (namespace: string, field: readonly string[]) => {
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-");
-  return `remotely-save-${namespace}-${name}`;
+  return `cloud-sync-${namespace}-${name}`;
 };
 
 export const newSecretNamespace = () => {
@@ -86,7 +86,7 @@ export const getSecretBackend = (app: unknown): SecretBackend | undefined => {
  * Mutates `settings`.
  */
 export const fillSecretsFromBackend = (
-  settings: RemotelySavePluginSettings,
+  settings: CloudSyncPluginSettings,
   backend: SecretBackend | undefined
 ) => {
   const namespace = settings.secretStorageNamespace;
@@ -112,9 +112,9 @@ export const fillSecretsFromBackend = (
  * Mutates `settings` only to assign a namespace on first use.
  */
 export const splitSecretsForDisk = (
-  settings: RemotelySavePluginSettings,
+  settings: CloudSyncPluginSettings,
   backend: SecretBackend | undefined
-): RemotelySavePluginSettings => {
+): CloudSyncPluginSettings => {
   if (backend === undefined) {
     return settings;
   }

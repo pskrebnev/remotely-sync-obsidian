@@ -1,6 +1,6 @@
 import { type App, Modal } from "obsidian";
 import type { TransItemType } from "./i18n";
-import type RemotelySavePlugin from "./main"; // unavoidable
+import type CloudSyncPlugin from "./main"; // unavoidable
 
 import { stringToFragment } from "./misc";
 
@@ -8,8 +8,8 @@ export class SyncAlgoV3Modal extends Modal {
   agree: boolean;
   manualBackup: boolean;
   requireUpdateAllDev: boolean;
-  readonly plugin: RemotelySavePlugin;
-  constructor(app: App, plugin: RemotelySavePlugin) {
+  readonly plugin: CloudSyncPlugin;
+  constructor(app: App, plugin: CloudSyncPlugin) {
     super(app);
     this.plugin = plugin;
     this.agree = false;

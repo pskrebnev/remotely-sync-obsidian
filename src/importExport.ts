@@ -3,26 +3,12 @@ import QRCode from "qrcode";
 
 import {
   COMMAND_URI,
+  type CloudSyncPluginSettings,
   type QRExportType,
-  type RemotelySavePluginSettings,
   type UriParams,
 } from "./baseTypes";
 import { encryptExportPayload } from "./exportCrypto";
 
-/**
- * Settings sections of the PRO backends removed from this fork.
- * Old data.json files may still contain them; they are never exported.
- */
-export const REMOVED_PRO_SETTINGS_KEYS = [
-  "onedrivefull",
-  "googledrive",
-  "box",
-  "pcloud",
-  "yandexdisk",
-  "koofr",
-  "azureblobstorage",
-  "pro",
-];
 import { getShrinkedSettings as getShrinkedSettingsOnedrive } from "./fsOnedrive";
 
 // value of the `enc` parameter in encrypted export links
@@ -33,13 +19,13 @@ export const EXPORT_ENCRYPTION_VERSION = "1";
  * encrypted with `passphrase` (see exportCrypto.ts).
  */
 export const exportQrCodeUri = async (
-  settings: RemotelySavePluginSettings,
+  settings: CloudSyncPluginSettings,
   currentVaultName: string,
   pluginVersion: string,
   exportFields: QRExportType,
   passphrase: string
 ) => {
-  let settings2: Partial<RemotelySavePluginSettings> = {};
+  let settings2: Partial<CloudSyncPluginSettings> = {};
 
   if (exportFields === "basic_and_advanced") {
     settings2 = cloneDeep(settings);
@@ -48,10 +34,6 @@ export const exportQrCodeUri = async (
     delete settings2.onedrive;
     delete settings2.webdav;
     delete settings2.webdis;
-    // sections of the removed PRO backends, possibly still in old data.json
-    for (const k of REMOVED_PRO_SETTINGS_KEYS) {
-      delete (settings2 as Record<string, unknown>)[k];
-    }
   } else if (exportFields === "s3") {
     settings2 = { s3: cloneDeep(settings.s3) };
   } else if (exportFields === "dropbox") {
@@ -85,7 +67,7 @@ export const exportQrCodeUri = async (
 export interface ProcessQrCodeResultType {
   status: "error" | "ok";
   message: string;
-  result?: RemotelySavePluginSettings;
+  result?: CloudSyncPluginSettings;
 }
 
 /**
@@ -93,7 +75,7 @@ export interface ProcessQrCodeResultType {
  * @param input
  */
 export const parseUriByHand = (input: string) => {
-  if (!input.startsWith("obsidian://remotely-save?func=settings&")) {
+  if (!input.startsWith("obsidian://cloud-sync?func=settings&")) {
     throw Error(`not valid string`);
   }
 
@@ -126,7 +108,7 @@ export const importQrCodeUri = (
     };
   }
 
-  let settings = {} as RemotelySavePluginSettings;
+  let settings = {} as CloudSyncPluginSettings;
   try {
     settings = JSON.parse(params.data);
   } catch (e) {

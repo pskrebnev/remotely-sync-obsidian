@@ -17,7 +17,7 @@
    http[s]://domain:port/dav/[mountpath url encoded]
    http://127.0.0.1:5244/dav/alisttest%20davpath
    ```
-4. 在 remotely-save 设置，输入**带域名端口`/dav`和挂载路径的网址**、账号、密码。
+4. 在 cloud-sync 设置，输入**带域名端口`/dav`和挂载路径的网址**、账号、密码。
    ![](./alist_rs_settings.en.png)
-5. 在 remotely-save 设置，检查连接。
+5. 在 cloud-sync 设置，检查连接。
 6. 同步文件！

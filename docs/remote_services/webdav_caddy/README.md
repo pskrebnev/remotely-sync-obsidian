@@ -1,6 +1,6 @@
 # Caddy with `http.handlers.webdav` module
 
-> modified from the instruction from @cyruz-git in https://github.com/remotely-save/remotely-save/issues/825
+> modified from the instruction from @cyruz-git
 
 ## Link
 
@@ -25,7 +25,7 @@
     }
     ```
     The password hash is generated like [this](https://caddyserver.com/docs/caddyfile/directives/basic_auth).
-4. In Remotely Save, setup:
+4. In Cloud Sync, setup:
     * address `http://localhost:8080/dav/`
     * username `Bob`
     * password `hiccup`
