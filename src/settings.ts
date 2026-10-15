@@ -1643,15 +1643,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       }),
     });
 
-    new Setting(webdavDiv)
+    const webdavAddrDesc = (address: string) =>
+      isInsecureRemoteUrl(address)
+        ? t("settings_insecure_address")
+        : t("settings_webdav_addr_desc");
+    const webdavAddrSetting = new Setting(webdavDiv)
       .setName(t("settings_webdav_addr"))
-      .setDesc(t("settings_webdav_addr_desc"))
+      .setDesc(webdavAddrDesc(this.plugin.settings.webdav.address))
       .addText((text) =>
         text
           .setPlaceholder("")
           .setValue(this.plugin.settings.webdav.address)
           .onChange(async (value) => {
             this.plugin.settings.webdav.address = value.trim();
+            webdavAddrSetting.setDesc(webdavAddrDesc(value.trim()));
             // deprecate auto on 20240116, force to manual_1
             if (
               this.plugin.settings.webdav.depth === "auto" ||
@@ -1867,15 +1872,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       }),
     });
 
-    new Setting(webdisDiv)
+    const webdisAddrDesc = (address: string) =>
+      isInsecureRemoteUrl(address)
+        ? t("settings_insecure_address")
+        : t("settings_webdis_addr_desc");
+    const webdisAddrSetting = new Setting(webdisDiv)
       .setName(t("settings_webdis_addr"))
-      .setDesc(t("settings_webdis_addr_desc"))
+      .setDesc(webdisAddrDesc(this.plugin.settings.webdis.address))
       .addText((text) =>
         text
           .setPlaceholder("https://")
           .setValue(this.plugin.settings.webdis.address)
           .onChange(async (value) => {
             this.plugin.settings.webdis.address = value.trim();
+            webdisAddrSetting.setDesc(webdisAddrDesc(value.trim()));
             // normally saved
             await this.plugin.saveSettings();
           })

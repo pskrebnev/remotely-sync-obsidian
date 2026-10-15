@@ -8,6 +8,7 @@ import {
   FileSystemAdapter,
   type Modal,
   Notice,
+  type ObsidianProtocolData,
   Platform,
   Plugin,
   type Setting,
@@ -24,12 +25,17 @@ import {
   setConfigBySuccessfullAuthInplace as setConfigBySuccessfullAuthInplacePro,
 } from "../pro/src/account";
 import {
+  BOX_CLIENT_ID,
   COMMAND_CALLBACK_BOX,
   COMMAND_CALLBACK_KOOFR,
   COMMAND_CALLBACK_ONEDRIVEFULL,
   COMMAND_CALLBACK_PCLOUD,
   COMMAND_CALLBACK_PRO,
   COMMAND_CALLBACK_YANDEXDISK,
+  KOOFR_CLIENT_ID,
+  PCLOUD_CLIENT_ID,
+  PRO_CLIENT_ID,
+  YANDEXDISK_CLIENT_ID,
 } from "../pro/src/baseTypesPro";
 import { DEFAULT_AZUREBLOBSTORAGE_CONFIG } from "../pro/src/fsAzureBlobStorage";
 import {
@@ -637,12 +643,15 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_DROPBOX,
+      this.settings.dropbox.clientID,
+      true,
       async (inputParams) => {
         if (
           inputParams.code !== undefined &&
-          this.oauth2Info?.verifier !== undefined
+          this.oauth2Info?.verifier !== undefined &&
+          this.oauth2Info.verifier !== ""
         ) {
           if (this.oauth2Info.helperModal !== undefined) {
             const k = this.oauth2Info.helperModal.contentEl;
@@ -725,12 +734,15 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_ONEDRIVE,
+      this.settings.onedrive.clientID,
+      true,
       async (inputParams) => {
         if (
           inputParams.code !== undefined &&
-          this.oauth2Info?.verifier !== undefined
+          this.oauth2Info?.verifier !== undefined &&
+          this.oauth2Info.verifier !== ""
         ) {
           if (this.oauth2Info.helperModal !== undefined) {
             const k = this.oauth2Info.helperModal.contentEl;
@@ -809,12 +821,15 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_ONEDRIVEFULL,
+      this.settings.onedrivefull.clientID,
+      true,
       async (inputParams) => {
         if (
           inputParams.code !== undefined &&
-          this.oauth2Info?.verifier !== undefined
+          this.oauth2Info?.verifier !== undefined &&
+          this.oauth2Info.verifier !== ""
         ) {
           if (this.oauth2Info.helperModal !== undefined) {
             const k = this.oauth2Info.helperModal.contentEl;
@@ -894,8 +909,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_PRO,
+      PRO_CLIENT_ID,
+      true,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -911,7 +928,7 @@ export default class RemotelySavePlugin extends Plugin {
         }
 
         const authRes = await sendAuthReqPro(
-          this.oauth2Info.verifier || "verifier",
+          this.oauth2Info.verifier!,
           inputParams.code,
           async (e: any) => {
             new Notice(t("protocol_pro_connect_fail"));
@@ -963,8 +980,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_BOX,
+      BOX_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1017,8 +1036,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_PCLOUD,
+      PCLOUD_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1073,8 +1094,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_YANDEXDISK,
+      YANDEXDISK_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1127,8 +1150,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_KOOFR,
+      KOOFR_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1536,6 +1561,34 @@ export default class RemotelySavePlugin extends Plugin {
     } else {
       await this.saveData(onDisk);
     }
+  }
+
+  /**
+   * OAuth callbacks are reachable by any obsidian:// link. They are only
+   * registered when the service has a client ID in this build, and only act
+   * while a login started from the settings is in progress.
+   * @param pkce the login flow stores a code verifier (otherwise it opens a
+   * helper modal)
+   */
+  registerOAuthCallback(
+    command: string,
+    clientID: string | undefined,
+    pkce: boolean,
+    handler: (inputParams: ObsidianProtocolData) => Promise<void>
+  ) {
+    if ((clientID ?? "") === "") {
+      return;
+    }
+    this.registerObsidianProtocolHandler(command, async (inputParams) => {
+      const pending = pkce
+        ? (this.oauth2Info?.verifier ?? "") !== ""
+        : this.oauth2Info?.helperModal !== undefined;
+      if (!pending) {
+        new Notice(this.i18n.t("protocol_oauth_not_pending"));
+        return;
+      }
+      await handler(inputParams);
+    });
   }
 
   /**

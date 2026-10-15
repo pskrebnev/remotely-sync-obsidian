@@ -3,6 +3,7 @@ import {
   assertSafeVaultPath,
   isInsecureRemoteUrl,
   redactSecrets,
+  stringToFragment,
 } from "../src/misc";
 
 describe("Security helpers: assertSafeVaultPath", () => {
@@ -89,5 +90,42 @@ describe("Security helpers: redactSecrets", () => {
     assert.equal(out.code, "<redacted>");
     assert.equal(out.list[0].apiKey, "<redacted>");
     assert.equal(input.s3.s3SecretAccessKey, "topsecret");
+  });
+});
+
+describe("Security helpers: stringToFragment", () => {
+  const { JSDOM } = require("jsdom");
+  const doc: Document = new JSDOM("").window.document;
+  const render = (html: string) => {
+    const div = doc.createElement("div");
+    div.appendChild(stringToFragment(html, doc));
+    return div.innerHTML;
+  };
+
+  it("should keep the markup used by translations", () => {
+    assert.equal(
+      render(
+        'Read <a href="https://example.com/x">this</a> and <a href="#settings-pro">that</a>, <strong>now</strong>:<br><ul><li><code>a</code></li></ul>'
+      ),
+      'Read <a href="https://example.com/x">this</a> and <a href="#settings-pro">that</a>, <strong>now</strong>:<br><ul><li><code>a</code></li></ul>'
+    );
+  });
+
+  it("should drop scripts, handlers and dangerous links", () => {
+    const out = render(
+      '<img src=x onerror="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)" onclick="x()">link</a><p style="x" onmouseover="y()">p</p><iframe src="https://evil"></iframe><!-- c -->'
+    );
+    assert.ok(
+      !/<img|<script|<iframe|onerror|onclick|onmouseover|javascript:|style=/i.test(
+        out
+      ),
+      out
+    );
+    assert.ok(out.includes("<a>link</a>"), out);
+    assert.ok(out.includes("<p>p</p>"), out);
+  });
+
+  it("should keep the text of unknown tags", () => {
+    assert.equal(render("<stong>bold</stong> <span>x</span>"), "bold x");
   });
 });

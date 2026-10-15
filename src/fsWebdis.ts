@@ -5,6 +5,7 @@ import {
   type WebdisConfig,
 } from "./baseTypes";
 import { FakeFs } from "./fsAll";
+import { isInsecureRemoteUrl } from "./misc";
 
 export const DEFAULT_WEBDIS_CONFIG: WebdisConfig = {
   address: "",
@@ -28,6 +29,12 @@ const getWebdisPath = (fileOrFolderPath: string, remoteBaseDir: string) => {
   }
   return `rs:fs:v1:${encodeURIComponent(key)}`; // we should encode them!!!!
 };
+
+/**
+ * Redis SCAN MATCH uses glob patterns: `*`, `?`, `[`, `]` and `\` in the
+ * vault folder name must be literal, or the scan could match other vaults.
+ */
+export const escapeRedisGlob = (x: string) => x.replace(/[*?[\]\\]/g, "\\$&");
 
 export const getOrigPath = (fullKey: string, remoteBaseDir: string) => {
   const fullKeyDecoded = decodeURIComponent(fullKey);
@@ -83,6 +90,11 @@ export class FakeFsWebdis extends FakeFs {
     if (address.endsWith("/")) {
       throw Error(`your webdis server should not ends with /`);
     }
+    if (isInsecureRemoteUrl(address)) {
+      throw Error(
+        `refusing plain http webdis address ${address}: credentials and files would be sent unencrypted; use https:// (http is only allowed for localhost or private network addresses)`
+      );
+    }
 
     if (content !== undefined && method !== "PUT") {
       throw Error(`you can only "POST" ArrayBuffer, not using other methods`);
@@ -117,7 +129,7 @@ export class FakeFsWebdis extends FakeFs {
     let cursor = "0";
     const res: Entity[] = [];
     do {
-      const command = `SCAN/${cursor}/MATCH/rs:fs:v1:${encodeURIComponent(this.remoteBaseDir + "/")}*:meta/COUNT/1000`;
+      const command = `SCAN/${cursor}/MATCH/rs:fs:v1:${encodeURIComponent(escapeRedisGlob(this.remoteBaseDir) + "/")}*:meta/COUNT/1000`;
       const rsp = (await (await this._fetchCommand("GET", command)).json())[
         "SCAN"
       ];
@@ -136,7 +148,7 @@ export class FakeFsWebdis extends FakeFs {
   async walkPartial(): Promise<Entity[]> {
     let cursor = "0";
     const res: Entity[] = [];
-    const command = `SCAN/${cursor}/MATCH/rs:fs:v1:${encodeURIComponent(this.remoteBaseDir + "/")}*:meta/COUNT/10`; // fewer keys
+    const command = `SCAN/${cursor}/MATCH/rs:fs:v1:${encodeURIComponent(escapeRedisGlob(this.remoteBaseDir) + "/")}*:meta/COUNT/10`; // fewer keys
     const rsp = (await (await this._fetchCommand("GET", command)).json())[
       "SCAN"
     ];

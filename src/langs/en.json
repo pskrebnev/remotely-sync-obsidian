@@ -49,6 +49,8 @@
   "modal_importpassphrase_title": "Enter the export passphrase",
   "modal_importpassphrase_desc": "These settings were exported with a passphrase. Enter the passphrase chosen on the exporting device.",
   "modal_importpassphrase_decrypt": "Decrypt",
+  "settings_insecure_address": "Plain http:// sends your password and files unencrypted. Use https://, unless the server is on localhost or your private network.",
+  "protocol_oauth_not_pending": "Ignored a login callback: no login was started from the plugin settings. If you did not open a login page just now, someone may have sent you a crafted link.",
   "protocol_import_invalid": "Settings were not imported: {{reason}}",
   "protocol_import_nochange": "The imported settings are the same as the current ones. Nothing changed.",
   "modal_importconfirm_title": "Review imported settings",

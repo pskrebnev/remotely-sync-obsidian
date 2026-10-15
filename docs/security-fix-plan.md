@@ -15,19 +15,23 @@ So the cheapest big win is to **stop registering what can't work** (Phase 0) bef
 
 ## Progress
 
-Phases 1–4 are implemented with Cloudflare R2 and AWS S3 in mind. Full details: [security-changes.md](./security-changes.md). All changes are in Apache-licensed `src/`, and `pro/` is untouched.
+Phases 1–5 are implemented with Cloudflare R2 and AWS S3 in mind. Full details: [security-changes.md](./security-changes.md). All changes are in Apache-licensed `src/`, and `pro/` is untouched.
 
 | # | Status | What was done |
 |---|--------|---------------|
 | 1 | Done | `src/importValidate.ts` accepts only known settings keys with the expected types, rejects `__proto__`/`constructor`/`prototype`, never imports `vaultRandomID` or `pro`, and checks `serviceType`. `src/importConfirmModal.ts` lists every change before saving, marks endpoint/bucket/key/sync-behaviour changes with ⚠, and masks secrets. Both the `obsidian://` link and the manual import box use it. Sections are merged key by key, so tokens of other services are kept. |
 | 2 | Done (`src/`) | Removed `console.debug(inputParams)` / `console.debug(authRes)` from all OAuth callbacks. |
 | 4 | Partial | `src/fsLocal.ts` refuses `..` segments (with `/` or `\`), absolute paths, drive letters and control characters for stat, read, write, mkdir, rename and delete. The fix inside the sync engine is still blocked by #17. |
-| 9 | Done for S3 | The S3 client refuses `http://` endpoints unless the host is loopback or private (RFC 1918, `.local`, `::1`, `fc00::/7`), so local MinIO still works. The settings field shows a warning while typing. WebDAV and Webdis are still to do. |
+| 9 | Done (S3, WebDAV, Webdis) | The S3 client refuses `http://` endpoints unless the host is loopback or private (RFC 1918, `.local`, `::1`, `fc00::/7`), so local MinIO still works. The settings field shows a warning while typing. WebDAV and Webdis followed in Phase 5. |
 | 5 | Done (workaround) | Phase 2: this plugin's `data.json` is never listed locally, is hidden from remote walks, and can't be written, renamed or deleted by sync. The config-sync dialog warns about plugin code and missing encryption. The sync engine itself is unchanged (#17). |
-| 6 | Done for S3 + E2E password | Phase 2: on Obsidian 1.11.4+, the S3 access key, secret key and encryption password are stored in `app.secretStorage`, and `data.json` keeps empty strings. They migrate automatically and fall back to `data.json` if storage is unavailable. WebDAV/Webdis/OAuth tokens are still to do (Phase 5). |
+| 6 | Done (S3, E2E password, WebDAV, Webdis, Dropbox, OneDrive) | Phase 2: on Obsidian 1.11.4+, the S3 access key, secret key and encryption password are stored in `app.secretStorage`, and `data.json` keeps empty strings. They migrate automatically and fall back to `data.json` if storage is unavailable. Phase 5 added WebDAV/Webdis passwords, WebDAV custom headers and Dropbox/OneDrive tokens. |
 | 7 | Done (rclone + salt) | Phase 3: per-vault random rclone salt published in `_remotely-save-encryption.json`; other devices adopt it; "Re-encrypt remote" converts legacy rclone and openssl vaults (publish salt → copy → verify → delete; resumable). Sync refuses to put plain files into an encrypted remote. rclone's scrypt cost is unchanged, to stay rclone-compatible. |
 | 10 | Done | "Output settings to console" now prints a redacted copy. |
 | 15 | Done (`src/`) | Import errors no longer echo the raw link. OAuth error notices and errors pass through `redactSecrets`. |
+| 3 | Done | Phase 5: OAuth callbacks are only registered when the service has a client ID (none in this fork's builds) and only act while a login started from the settings is in progress; the PRO `"verifier"` fallback is removed. |
+| 8 | Not applicable (documented) | This fork ships no OAuth client IDs/secrets. If own apps are added: PKCE public clients, secrets in a protected environment, rotate exposed ones. |
+| 14 | Done | Phase 5: `stringToFragment` keeps only the tags the translations use and `https://`/`#` links. |
+| 16 | Done | Phase 5: glob characters in the vault folder are escaped in Webdis `SCAN MATCH`. |
 | 12 | Done | Phase 4: `uuid` override, unused `aws-crt`/`@aws-sdk/signature-v4-crt` removed, `rimraf` moved to dev; CI audit gate with a reviewed allow-list (the two remaining high advisories are Node-only code of the Box/pCloud SDKs, not in the bundle); Dependabot weekly. |
 | 13 | Done | Phase 4: all actions pinned to commit SHAs; Dependabot updates them. |
 | 11 | Done | Phase 3: exports are encrypted with a passphrase (AES-256-GCM, PBKDF2-SHA256 600k), and the import asks for it before validation and confirmation. |

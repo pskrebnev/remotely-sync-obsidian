@@ -10,7 +10,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 | [Phase 2](#phase-2-plugin-settings-file-and-credential-storage) | This plugin's `data.json` is never synced; R2/S3 keys and the encryption password move to Obsidian's secret storage | Done |
 | [Phase 3](#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports) | Per-vault encryption salt, "Re-encrypt remote" migration, passphrase-encrypted settings exports | Done |
 | [Phase 4](#phase-4-ci-and-dependencies) | CI audit gate, Dependabot, SHA-pinned actions, fewer vulnerable dependencies | Done |
-| Phase 5 | Other backends and low-severity items | Not started |
+| [Phase 5](#phase-5-other-backends-and-low-severity-items) | OAuth callbacks gated, https for WebDAV/Webdis, more credentials in secret storage, HTML sanitizing, Webdis escaping | Done |
 
 ---
 
@@ -365,3 +365,96 @@ Every allow-list entry has a reason and a review date. Adding an entry is a deli
 | `scripts/audit-allowlist.json` | New: reviewed advisories with reasons |
 | `.github/workflows/auto-build.yml`, `.github/workflows/release.yml` | Actions pinned to SHAs; audit step |
 | `.github/dependabot.yml` | New: weekly npm and Actions updates |
+
+---
+
+## Phase 5: other backends and low-severity items
+
+Branch: `security-update-phase5`. Fixes #3, #9 (WebDAV/Webdis), #14 and #16, extends #6, and records the state of #8. Nothing under `pro/` changed. The PRO OAuth callbacks are registered in `src/main.ts`, which is Apache-licensed.
+
+### 1. OAuth login callbacks are gated (#3, High)
+
+**Before.** All OAuth callbacks were always registered: Dropbox, OneDrive, OneDrive Full, PRO, Box, pCloud, Yandex Disk and Koofr. Any `obsidian://remotely-save-cb-…?code=…` link could trigger them.
+- The Dropbox/OneDrive checks (`verifier !== undefined`) still passed after a finished login, because the verifier is reset to `""`, not `undefined`.
+- The PRO callback ran even with no login in progress, falling back to the literal verifier `"verifier"`.
+- An attacker could use this to connect your plugin to *their* cloud account (login CSRF), and your vault would then sync into their storage.
+
+**Now** (`registerOAuthCallback` in `src/main.ts`):
+- **A callback is only registered if the service has a client ID in this build.** This fork's builds have no OAuth secrets, so none of these callbacks exist: `obsidian://` links to them do nothing.
+- **A callback only acts while a login started from the settings is in progress:**
+  - for PKCE logins (Dropbox, OneDrive, OneDrive Full, PRO), a non-empty code verifier;
+  - for the others (Box, pCloud, Yandex Disk, Koofr), the open helper dialog.
+
+  Otherwise it shows a notice that a login callback was ignored and might come from a crafted link.
+- The `"verifier"` fallback is removed, and the three Dropbox/OneDrive checks now also reject an empty verifier.
+
+A full OAuth `state` parameter isn't needed for this fork: with no client IDs the callbacks don't exist, and with your own apps the "login in progress" check already blocks unsolicited callbacks. Add `state` if you register your own OAuth apps.
+
+### 2. WebDAV and Webdis must use https (#9 for the other backends)
+
+Same rule as S3 in Phase 1. Plain `http://` is refused unless the host is local or private (`localhost`, `*.local`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1`, `fc00::/7`):
+- **WebDAV:** `FakeFsWebdav._init` (`src/fsWebdav.ts`) refuses before creating the client.
+- **Webdis:** `_fetchCommand` (`src/fsWebdis.ts`) refuses before every request. Basic auth was previously sent in clear text over http.
+- The *Address* fields of both show a warning while you type an insecure URL.
+
+A NAS on your home network (for example `http://192.168.1.10:5005` for Synology WebDAV) keeps working.
+
+### 3. More credentials in Obsidian's secret storage (#6)
+
+Phase 2's mechanism (`SECRET_FIELDS` in `src/secretStore.ts`) now also covers:
+- `webdav.password`;
+- `webdav.customHeaders`, which can carry an `Authorization` header;
+- `webdis.password`;
+- `dropbox.accessToken` and `dropbox.refreshToken`;
+- `onedrive.accessToken` and `onedrive.refreshToken`.
+
+Migration and fallback work as in Phase 2: values move on the first start with Obsidian 1.11.4+, and stay in `data.json` if secret storage is unavailable. Token refreshes go through `saveSettings`, so refreshed tokens are stored in secret storage too.
+
+PRO-backend tokens are not moved, because those backends can't be used in this fork (see #17).
+
+### 4. Translated HTML is sanitized (#14, Low)
+
+`stringToFragment` (`src/misc.ts`) put translation strings into the settings UI through `innerHTML`. The strings are trusted today, but a malicious translation pull request could have injected script.
+
+Now the HTML is parsed in an inert `<template>`, and then:
+- **only these tags are kept:** `a`, `b`, `br`, `code`, `em`, `i`, `li`, `ol`, `p`, `strong`, `ul`, which is everything the strings use;
+- other elements are reduced to their text (`<script>`, `<img>`, `<iframe>`, typos like `<stong>`), and comments are removed;
+- all attributes are removed except `href` on links, which is kept only if it starts with `https://` or `#`. So `javascript:` links lose their target.
+
+### 5. Webdis SCAN pattern escaping (#16, Low)
+
+Webdis keys were already percent-encoded (`getWebdisPath`), so arguments can't be split. But the vault folder name went *unescaped* into Redis's `SCAN … MATCH` glob pattern. A folder name containing `*`, `?`, `[` or `]` could match other vaults' keys, which then made the walk fail. `escapeRedisGlob` (`src/fsWebdis.ts`) now makes those characters literal in both SCAN calls.
+
+### 6. OAuth client secrets in the bundle (#8)
+
+Nothing is shipped: this fork's repository has no OAuth secrets, so every `DEFAULT_*_CLIENT_ID`/`_SECRET` is built as an empty string. If you ever register your own apps:
+- prefer public clients with PKCE and no secret (Dropbox and OneDrive already use PKCE);
+- keep secrets in the `env-for-buildci` environment with required reviewers (Phase 4);
+- rotate any secret that has been in a public build.
+
+### Tests
+
+- `tests/securityHelpers.test.ts`: `stringToFragment` keeps the translation markup; drops `<script>`, `<img onerror>`, `<iframe>`, event handlers, `style` and `javascript:` links; and keeps the text of unknown tags.
+- `tests/secretStore.test.ts`: the WebDAV, Webdis and OAuth fields move to secret storage and back, while client IDs and addresses stay in `data.json`.
+- `tests/fsWebdis.test.ts`: glob escaping.
+- Result: 114 tests pass (5 new). Typecheck, lint and production build are clean.
+
+### Manual test checklist (Obsidian)
+
+These haven't been run yet.
+
+1. **OAuth callbacks:** open `obsidian://remotely-save-cb-dropbox?code=x` in a browser. Nothing happens in this fork's build, because the callback isn't registered.
+2. **WebDAV:** `http://dav.example.com` shows the warning and *Check connectivity* fails with the "refusing plain http" error. `https://…` and `http://192.168.x.x` work.
+3. **Settings UI:** the settings texts with links and bold text (encryption method, PRO, debug) still look as before.
+4. **Secret storage:** with a WebDAV password set, `data.json` shows `"password": ""` under `webdav` after a restart, and sync works.
+
+### Files
+
+| File | Change |
+|------|--------|
+| `src/main.ts` | `registerOAuthCallback`: callbacks gated on client ID and a pending login; `"verifier"` fallback removed |
+| `src/fsWebdav.ts`, `src/fsWebdis.ts` | Refuse insecure http; `escapeRedisGlob` for SCAN |
+| `src/settings.ts`, `src/langs/en.json` | Address warnings; ignored-callback notice |
+| `src/secretStore.ts` | More `SECRET_FIELDS` |
+| `src/misc.ts` | `stringToFragment` sanitizes |
+| `tests/securityHelpers.test.ts`, `tests/secretStore.test.ts`, `tests/fsWebdis.test.ts` | New tests |

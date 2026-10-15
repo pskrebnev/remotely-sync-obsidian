@@ -522,10 +522,51 @@ export const compareVersion = (x: string | null, y: string | null) => {
  * @param string
  * @returns
  */
-export const stringToFragment = (string: string) => {
-  const wrapper = document.createElement("template");
+export const stringToFragment = (string: string, doc: Document = document) => {
+  // template content is inert: nothing runs or loads while it is parsed
+  const wrapper = doc.createElement("template");
   wrapper.innerHTML = string;
+  sanitizeFragmentInplace(wrapper.content);
   return wrapper.content;
+};
+
+// what the translation strings use; anything else is reduced to its text
+const ALLOWED_FRAGMENT_TAGS = new Set([
+  "A",
+  "B",
+  "BR",
+  "CODE",
+  "EM",
+  "I",
+  "LI",
+  "OL",
+  "P",
+  "STRONG",
+  "UL",
+]);
+
+const sanitizeFragmentInplace = (node: ParentNode) => {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === 1 /* element */) {
+      const el = child as Element;
+      sanitizeFragmentInplace(el);
+      if (!ALLOWED_FRAGMENT_TAGS.has(el.tagName.toUpperCase())) {
+        el.replaceWith(...Array.from(el.childNodes));
+        continue;
+      }
+      for (const attr of Array.from(el.attributes)) {
+        const isSafeLink =
+          el.tagName.toUpperCase() === "A" &&
+          attr.name === "href" &&
+          /^(https:\/\/|#)/i.test(attr.value.trim());
+        if (!isSafeLink) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    } else if (child.nodeType !== 3 /* text */) {
+      child.parentNode?.removeChild(child);
+    }
+  }
 };
 
 /**
