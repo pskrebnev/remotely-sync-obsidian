@@ -1,9 +1,9 @@
 import { strict as assert } from "assert";
 
-import type { RemotelySavePluginSettings } from "../src/baseTypes";
+import type { CloudSyncPluginSettings } from "../src/baseTypes";
 import { messyConfigToNormal, normalConfigToMessy } from "../src/configPersist";
 
-const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
+const DEFAULT_SETTINGS: CloudSyncPluginSettings = {
   s3: {
     s3AccessKeyID: "acc",
   } as any,

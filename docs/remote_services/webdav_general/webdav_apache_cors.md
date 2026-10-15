@@ -1,6 +1,6 @@
 # How To Configure Apache CORS Rules for Webdav
 
-This method is [contributed by community](https://github.com/remotely-save/remotely-save/pull/31).
+This method is contributed by community.
 
 You should evaluate the risk by yourself before trying this method.
 

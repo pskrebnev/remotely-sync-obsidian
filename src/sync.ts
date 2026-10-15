@@ -3,11 +3,11 @@ import AggregateError from "aggregate-error";
 import PQueue from "p-queue";
 import XRegExp from "xregexp";
 import type {
+  CloudSyncPluginSettings,
   ConflictActionType,
   EmptyFolderCleanType,
   Entity,
   MixedEntity,
-  RemotelySavePluginSettings,
   SUPPORTED_SERVICES_TYPE,
   SyncDirectionType,
   SyncTriggerSourceType,
@@ -288,7 +288,7 @@ const getSyncPlanInplace = async (
   conflictAction: ConflictActionType,
   syncDirection: SyncDirectionType,
   profiler: Profiler | undefined,
-  settings: RemotelySavePluginSettings,
+  settings: CloudSyncPluginSettings,
   triggerSource: SyncTriggerSourceType
 ) => {
   profiler?.addIndent();
@@ -1380,7 +1380,7 @@ export async function syncer(
   profileID: string,
   vaultRandomID: string,
   configDir: string,
-  settings: RemotelySavePluginSettings,
+  settings: CloudSyncPluginSettings,
   getProtectModifyPercentageErrorStrFunc: any,
   markIsSyncingFunc: (isSyncing: boolean) => void,
   notifyFunc?: (s: SyncTriggerSourceType, step: number) => Promise<any>,

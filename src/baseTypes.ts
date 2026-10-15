@@ -126,7 +126,7 @@ export interface ProfilerConfig {
   recordSize?: boolean;
 }
 
-export interface RemotelySavePluginSettings {
+export interface CloudSyncPluginSettings {
   s3: S3Config;
   webdav: WebdavConfig;
   dropbox: DropboxConfig;
@@ -164,7 +164,7 @@ export interface RemotelySavePluginSettings {
 
   /**
    * Per-vault rclone salt ("password2"), published in the remote's
-   * _remotely-save-encryption.json. "" means rclone's built-in salt
+   * _cloud-sync-encryption.json. "" means rclone's built-in salt
    * (vaults created before per-vault salts).
    */
   encryptionSalt?: string;
@@ -208,10 +208,10 @@ export interface RemotelySavePluginSettings {
   howToCleanEmptyFolder?: EmptyFolderCleanType;
 }
 
-export const COMMAND_URI = "remotely-save";
-export const COMMAND_CALLBACK = "remotely-save-cb";
-export const COMMAND_CALLBACK_ONEDRIVE = "remotely-save-cb-onedrive";
-export const COMMAND_CALLBACK_DROPBOX = "remotely-save-cb-dropbox";
+export const COMMAND_URI = "cloud-sync";
+export const COMMAND_CALLBACK = "cloud-sync-cb";
+export const COMMAND_CALLBACK_ONEDRIVE = "cloud-sync-cb-onedrive";
+export const COMMAND_CALLBACK_DROPBOX = "cloud-sync-cb-dropbox";
 
 export interface UriParams {
   func?: string;
@@ -332,7 +332,7 @@ export interface FileOrFolderMixedState {
   deltimeRemoteFmt?: string;
 }
 
-export const DEFAULT_DEBUG_FOLDER = "_debug_remotely_save/";
+export const DEFAULT_DEBUG_FOLDER = "_debug_cloud_sync/";
 export const DEFAULT_SYNC_PLANS_HISTORY_FILE_PREFIX =
   "sync_plans_hist_exported_on_";
 export const DEFAULT_LOG_HISTORY_FILE_PREFIX = "log_hist_exported_on_";
@@ -346,5 +346,5 @@ export type SyncTriggerSourceType =
   | "auto_once_init"
   | "auto_sync_on_save";
 
-export const REMOTELY_SAVE_VERSION_2022 = "0.3.25";
-export const REMOTELY_SAVE_VERSION_2024PREPARE = "0.3.32";
+export const LEGACY_VERSION_2022 = "0.3.25";
+export const LEGACY_VERSION_2024PREPARE = "0.3.32";

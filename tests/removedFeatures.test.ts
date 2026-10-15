@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import type { RemotelySavePluginSettings } from "../src/baseTypes";
+import type { CloudSyncPluginSettings } from "../src/baseTypes";
 import {
   getUnsupportedSyncSettingsReason,
   migrateRemovedFeatureSettings,
@@ -13,7 +13,7 @@ const make = (x: Record<string, unknown>) =>
     onlyAllowPaths: [],
     syncBookmarks: false,
     ...x,
-  }) as unknown as RemotelySavePluginSettings;
+  }) as unknown as CloudSyncPluginSettings;
 
 describe("Removed PRO features", () => {
   it("should leave supported settings alone", () => {

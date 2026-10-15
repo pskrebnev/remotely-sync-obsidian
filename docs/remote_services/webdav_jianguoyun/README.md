@@ -16,7 +16,7 @@ JianGuoYun/NutStore has api limits. The plugin may generate many queries, and it
 2. Register an account.
 3. Go to "settings"->"Security", click "Add Application", then obtain the WebDAV account (email), and WebDAV password (a string different from web site password).
    ![](./webdav_jianguoyun.cn.png)
-4. Input the WebDAV address, account, password, **Depth Header Sent To Servers="only supports depth='1'"** in remotely-save settings.
+4. Input the WebDAV address, account, password, **Depth Header Sent To Servers="only supports depth='1'"** in cloud-sync settings.
    ![](./webdav_jianguoyun_rs_settting.cn.png)
-5. In remotely-save setting page, click "Check Connectivity".
+5. In cloud-sync setting page, click "Check Connectivity".
 6. Sync!

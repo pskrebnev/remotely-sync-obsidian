@@ -2,26 +2,26 @@ import { strict as assert } from "assert";
 import { filterOutKeys, getOwnPluginDataFilePath } from "../src/misc";
 
 describe("Own plugin data.json is never synced", () => {
-  const dataFile = getOwnPluginDataFilePath(".obsidian", "remotely-save");
+  const dataFile = getOwnPluginDataFilePath(".obsidian", "cloud-sync");
 
   it("should build the plugin data.json path", () => {
-    assert.equal(dataFile, ".obsidian/plugins/remotely-save/data.json");
+    assert.equal(dataFile, ".obsidian/plugins/cloud-sync/data.json");
   });
 
   it("should filter it out of walk results, keeping everything else", () => {
     const entities = [
       "note.md",
       ".obsidian/",
-      ".obsidian/plugins/remotely-save/",
+      ".obsidian/plugins/cloud-sync/",
       dataFile,
-      ".obsidian/plugins/remotely-save/main.js",
+      ".obsidian/plugins/cloud-sync/main.js",
       ".obsidian/plugins/other/data.json",
     ].map((key) => ({ key }));
     entities.push({ key: undefined as unknown as string });
 
     const keys = filterOutKeys(entities, new Set([dataFile])).map((e) => e.key);
     assert.ok(!keys.includes(dataFile));
-    assert.ok(keys.includes(".obsidian/plugins/remotely-save/main.js"));
+    assert.ok(keys.includes(".obsidian/plugins/cloud-sync/main.js"));
     assert.ok(keys.includes(".obsidian/plugins/other/data.json"));
     assert.equal(keys.length, 6);
   });

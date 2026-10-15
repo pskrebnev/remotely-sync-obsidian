@@ -1,11 +1,10 @@
 {
-  "id": "remotely-save",
-  "name": "Remotely Save",
+  "id": "cloud-sync",
+  "name": "Cloud Sync",
   "version": "0.5.25",
   "minAppVersion": "0.13.21",
-  "description": "Yet another unofficial plugin allowing users to synchronize notes between local device and the cloud service.",
-  "author": "fyears",
-  "authorUrl": "https://github.com/fyears",
-  "isDesktopOnly": false,
-  "fundingUrl": "https://remotelysave.com"
+  "description": "Sync your vault with your own cloud storage (S3 / Cloudflare R2, WebDAV, Webdis, Dropbox, OneDrive), with end-to-end encryption.",
+  "author": "pskrebnev",
+  "authorUrl": "https://github.com/pskrebnev",
+  "isDesktopOnly": false
 }

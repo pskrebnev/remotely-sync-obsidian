@@ -13,7 +13,7 @@
 
 1. 注册，新建对象存储。
 2. 参考官网文档 <https://help.upyun.com/knowledge-base/aws-s3%e5%85%bc%e5%ae%b9/>，创建操作员然后创建 S3 访问凭证。
-3. 在 Remotely Save 设置以下：
+3. 在 Cloud Sync 设置以下：
    - 服务地址（Endpoint）：`s3.api.upyun.com` **一定是这个域名**
    - 区域（Region）：`us-east-1`
    - Acccess Key ID：您获取到的访问凭证的 AccessKey

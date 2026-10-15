@@ -233,9 +233,9 @@ const fromDriveItemToEntity = (x: DriveItem, remoteBaseDir: string): Entity => {
   let key = "";
 
   // possible prefix:
-  // pure english: /drive/root:/Apps/remotely-save/${remoteBaseDir}
-  // or localized, e.g.: /drive/root:/应用/remotely-save/${remoteBaseDir}
-  const FIRST_COMMON_PREFIX_REGEX = /^\/drive\/root:\/[^\/]+\/remotely-save\//g;
+  // pure english: /drive/root:/Apps/cloud-sync/${remoteBaseDir}
+  // or localized, e.g.: /drive/root:/应用/cloud-sync/${remoteBaseDir}
+  const FIRST_COMMON_PREFIX_REGEX = /^\/drive\/root:\/[^\/]+\/cloud-sync\//g;
 
   // why?? /drive/root:/Apps/Graph
   const FIFTH_COMMON_PREFIX_REGEX = /^\/drive\/root:\/[^\/]+\/Graph\//g;
@@ -245,13 +245,13 @@ const fromDriveItemToEntity = (x: DriveItem, remoteBaseDir: string): Entity => {
   const SIXTH_COMMON_PREFIX_REGEX_V2 = /^\/drive\/root:\/[^\/]+\/Graph%201\//g;
 
   // or the root is absolute path /Livefolders,
-  // e.g.: /Livefolders/应用/remotely-save/${remoteBaseDir}
-  const SECOND_COMMON_PREFIX_REGEX = /^\/Livefolders\/[^\/]+\/remotely-save\//g;
+  // e.g.: /Livefolders/应用/cloud-sync/${remoteBaseDir}
+  const SECOND_COMMON_PREFIX_REGEX = /^\/Livefolders\/[^\/]+\/cloud-sync\//g;
 
   // another report, why???
-  // /drive/root:/something/app/remotely-save/${remoteBaseDir}
+  // /drive/root:/something/app/cloud-sync/${remoteBaseDir}
   const THIRD_COMMON_PREFIX_REGEX =
-    /^\/drive\/root:\/[^\/]+\/app\/remotely-save\//g;
+    /^\/drive\/root:\/[^\/]+\/app\/cloud-sync\//g;
 
   // another possibile prefix
   const FOURTH_COMMON_PREFIX_RAW = `/drive/items/`;
