@@ -1,8 +1,8 @@
-# Cloud Sync
+# Sync It Simply Stupid
 A personal Obsidian plugin that syncs a vault with your own cloud storage, such as Cloudflare R2 or AWS S3, with end-to-end encryption. It's maintained for my own use.
 
 ## Credits
-Cloud Sync is based on [Remotely Save](https://github.com/remotely-save/remotely-save) (Apache License 2.0).
+Sync It Simply Stupid is based on [Remotely Save](https://github.com/remotely-save/remotely-save) (Apache License 2.0).
 
 ## Disclaimer
 - **This is NOT the [official sync service](https://obsidian.md/sync) provided by Obsidian.**
@@ -77,7 +77,7 @@ The plugin connects only to the storage you configure. It has no tracking, analy
 
 ### Dropbox
 - **This plugin is NOT an official Dropbox product.** The plugin just uses Dropbox's public API.
-- After the authorization, the plugin can read your name and email (which cannot be unselected on Dropbox api), and read and write files in your Dropbox's `/Apps/cloud-sync` folder.
+- After the authorization, the plugin can read your name and email (which cannot be unselected on Dropbox api), and read and write files in your Dropbox's `/Apps/sync-it-simply-stupid` folder.
 - If you decide to authorize this plugin to connect to Dropbox, please go to plugin's settings, and choose Dropbox then follow the instructions. [More with screenshot is here](./docs/dropbox_review_material/README.md).
 - Password-based end-to-end encryption is also supported. But please be aware that **the vault name itself is not encrypted**.
 - If you want to sync the files across multiple devices, **your vault name should be the same** while using default settings.
@@ -85,7 +85,7 @@ The plugin connects only to the storage you configure. It has no tracking, analy
 ### OneDrive for personal (App Folder)
 - **This plugin is NOT an official Microsoft / OneDrive product.** The plugin just uses Microsoft's [OneDrive's public API](https://docs.microsoft.com/en-us/onedrive/developer/rest-api).
 - This plugin only works for "OneDrive for personal", and not works for "OneDrive for Business" (yet).
-- After the authorization, the plugin can read your name and email, and read and write files in your OneDrive's `/Apps/cloud-sync` folder.
+- After the authorization, the plugin can read your name and email, and read and write files in your OneDrive's `/Apps/sync-it-simply-stupid` folder.
 - If you decide to authorize this plugin to connect to OneDrive, please go to plugin's settings, and choose OneDrive then follow the instructions.
 - Password-based end-to-end encryption is also supported. But please be aware that **the vault name itself is not encrypted**.
 - If you want to sync the files across multiple devices, **your vault name should be the same** while using default settings.

@@ -12,6 +12,6 @@
     ```bash
     dufs -A --enable-cors --bind 127.0.0.1 --port 8080 --auth user1:pass1@/:rw
     ```
-4. In cloud-sync setting page, select webdav type, then input the address/account/**webdav password**(not your account password).
-5. In cloud-sync setting page, click "Check Connectivity".
+4. In sync-it-simply-stupid setting page, select webdav type, then input the address/account/**webdav password**(not your account password).
+5. In sync-it-simply-stupid setting page, click "Check Connectivity".
 6. Sync!

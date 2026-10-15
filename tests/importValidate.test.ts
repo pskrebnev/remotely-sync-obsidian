@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import type { CloudSyncPluginSettings } from "../src/baseTypes";
+import type { SyncItSimplyStupidPluginSettings } from "../src/baseTypes";
 import {
   applyImportedSettings,
   sanitizeImportedSettings,
@@ -27,7 +27,7 @@ const makeDefaults = () =>
     lang: "auto",
     syncConfigDir: false,
     ignorePaths: [],
-  }) as unknown as CloudSyncPluginSettings;
+  }) as unknown as SyncItSimplyStupidPluginSettings;
 
 const makeCurrent = () => {
   const c = makeDefaults() as any;
@@ -35,7 +35,7 @@ const makeCurrent = () => {
   c.s3.s3BucketName = "my-vault";
   c.s3.s3SecretAccessKey = "my-secret";
   c.dropbox.refreshToken = "keep-me";
-  return c as CloudSyncPluginSettings;
+  return c as SyncItSimplyStupidPluginSettings;
 };
 
 describe("Import settings: sanitizeImportedSettings", () => {

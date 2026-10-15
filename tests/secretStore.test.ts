@@ -1,5 +1,5 @@
 import { strict as assert } from "assert";
-import type { CloudSyncPluginSettings } from "../src/baseTypes";
+import type { SyncItSimplyStupidPluginSettings } from "../src/baseTypes";
 import {
   type SecretBackend,
   fillSecretsFromBackend,
@@ -40,17 +40,17 @@ const makeSettings = () =>
     },
     password: "e2e-pass",
     serviceType: "s3",
-  }) as unknown as CloudSyncPluginSettings;
+  }) as unknown as SyncItSimplyStupidPluginSettings;
 
 describe("Secret storage", () => {
   it("should build valid SecretStorage ids", () => {
     assert.equal(
       secretIdFor("abc123", ["s3", "s3SecretAccessKey"]),
-      "cloud-sync-abc123-s3-s3-secret-access-key"
+      "sync-it-simply-stupid-abc123-s3-s3-secret-access-key"
     );
     assert.equal(
       secretIdFor("abc123", ["password"]),
-      "cloud-sync-abc123-password"
+      "sync-it-simply-stupid-abc123-password"
     );
   });
 
@@ -149,7 +149,7 @@ describe("Secret storage", () => {
         refreshToken: "od-rt",
         clientID: "cid",
       },
-    } as unknown as CloudSyncPluginSettings;
+    } as unknown as SyncItSimplyStupidPluginSettings;
     const onDisk = splitSecretsForDisk(settings, backend) as any;
     for (const [section, key] of [
       ["webdav", "password"],

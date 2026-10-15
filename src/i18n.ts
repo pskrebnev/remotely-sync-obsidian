@@ -23,11 +23,14 @@ export class I18n {
   }
 
   _get(key: TransItemType) {
-    let realLang = this.lang;
-    if (this.lang === "auto" && moment.locale().replace("-", "_") in LANGS) {
-      realLang = moment.locale().replace("-", "_") as LangType;
-    } else {
-      realLang = "en";
+    let realLang: LangType = "en";
+    if (this.lang === "auto") {
+      const locale = moment.locale().replace("-", "_");
+      if (locale in LANGS) {
+        realLang = locale as LangType;
+      }
+    } else if (this.lang in LANGS) {
+      realLang = this.lang;
     }
 
     const res: string =

@@ -1,20 +1,20 @@
 import { type App, Modal, Setting } from "obsidian";
 import type { TransItemType } from "./i18n";
 import type { ImportChange } from "./importValidate";
-import type CloudSyncPlugin from "./main";
+import type SyncItSimplyStupidPlugin from "./main";
 import { wrapTextWithPasswordHide } from "./settings";
 
 /**
  * Shows every setting an import would change, before anything is saved.
  */
 export class ImportSettingsConfirmModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly changes: ImportChange[];
   readonly ignoredKeys: string[];
   readonly onConfirm: () => Promise<void>;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     changes: ImportChange[],
     ignoredKeys: string[],
     onConfirm: () => Promise<void>
@@ -81,11 +81,11 @@ export class ImportSettingsConfirmModal extends Modal {
  * Asks for the passphrase of an encrypted settings export.
  */
 export class ImportPassphraseModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly onSubmit: (passphrase: string) => Promise<void>;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     onSubmit: (passphrase: string) => Promise<void>
   ) {
     super(app);

@@ -8,7 +8,7 @@ English | [中文](./README.zh-cn.md)
 
 ## Attention
 
-The tutorial author (the author of Cloud Sync) is NOT an expert of NAS / Synology. Please read the doc carefully and change it to accommodate your needs by yourself.
+The tutorial author (the author of Sync It Simply Stupid) is NOT an expert of NAS / Synology. Please read the doc carefully and change it to accommodate your needs by yourself.
 
 **It's dangerous to expose your NAS into public Internet if you don't know how to set up firewalls and other protections.**
 
@@ -36,7 +36,7 @@ Synology DSM 7 is used in this tutorial.
 
    ![](./synology_webdav_server_settings.png)
 
-6. In Cloud Sync settings, you should input your address as:
+6. In Sync It Simply Stupid settings, you should input your address as:
 
    `http(s)://<your synology ip or domain>:<port>/<shared folder>/<sub folders>`
 
@@ -50,6 +50,6 @@ Synology DSM 7 is used in this tutorial.
 
    Check connectivity!
 
-   ![](./synology_cloud_sync_settings.png)
+   ![](./synology_sync_it_simply_stupid_settings.png)
 
 7. Sync!

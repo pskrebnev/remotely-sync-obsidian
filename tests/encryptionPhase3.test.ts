@@ -227,7 +227,10 @@ describe("Re-encrypt remote", () => {
     remote.objects.set("old:folder/", new ArrayBuffer(0));
     remote.objects.set("old:folder/a.md", encode("old", "remote a"));
     remote.objects.set("old:remote-only.md", encode("old", "only in bucket"));
-    remote.objects.set("_cloud-sync-encryption.json", new ArrayBuffer(0));
+    remote.objects.set(
+      "_sync-it-simply-stupid-encryption.json",
+      new ArrayBuffer(0)
+    );
     const local = new Map([["folder/a.md", "local a"]]);
 
     const res = await rebuildRemoteEncryption(
@@ -242,7 +245,7 @@ describe("Re-encrypt remote", () => {
     assert.equal(res.deletedCount, 3);
     assert.ok(remote.published);
     assert.deepEqual([...remote.objects.keys()].sort(), [
-      "_cloud-sync-encryption.json",
+      "_sync-it-simply-stupid-encryption.json",
       "new:folder/",
       "new:folder/a.md",
       "new:remote-only.md",
@@ -323,7 +326,7 @@ describe("Re-encrypt remote", () => {
 
   it("should delete, not carry over, dropped keys", async () => {
     const remote = new MemoryRemote();
-    const dataFile = ".obsidian/plugins/cloud-sync/data.json";
+    const dataFile = ".obsidian/plugins/sync-it-simply-stupid/data.json";
     remote.objects.set(`old:${dataFile}`, encode("old", "{old secrets}"));
     remote.objects.set("old:a.md", encode("old", "a"));
     const local = new Map([[dataFile, "{live secrets}"]]);

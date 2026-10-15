@@ -1,4 +1,4 @@
-# Translations for Cloud Sync
+# Translations for Sync It Simply Stupid
 
 ## How To Add A Language?
 

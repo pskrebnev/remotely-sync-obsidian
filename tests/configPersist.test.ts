@@ -1,9 +1,9 @@
 import { strict as assert } from "assert";
 
-import type { CloudSyncPluginSettings } from "../src/baseTypes";
+import type { SyncItSimplyStupidPluginSettings } from "../src/baseTypes";
 import { messyConfigToNormal, normalConfigToMessy } from "../src/configPersist";
 
-const DEFAULT_SETTINGS: CloudSyncPluginSettings = {
+const DEFAULT_SETTINGS: SyncItSimplyStupidPluginSettings = {
   s3: {
     s3AccessKeyID: "acc",
   } as any,

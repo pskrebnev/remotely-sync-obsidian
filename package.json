@@ -1,6 +1,6 @@
 {
-  "name": "cloud-sync",
-  "version": "0.5.25",
+  "name": "sync-it-simply-stupid",
+  "version": "0.8.4",
   "description": "Personal Obsidian sync plugin for your own cloud storage.",
   "scripts": {
     "dev2": "node esbuild.config.mjs --watch",

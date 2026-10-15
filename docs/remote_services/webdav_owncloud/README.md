@@ -10,8 +10,8 @@
 2. Login.
 3. In the Settings position, enable the "Show hidden files" and find out the WebDAV address.
    ![](./owncloud_address.png)
-4. Input the WebDAV address, account, password, **Depth Header Sent To Servers="only supports depth='1'"** in cloud-sync settings.
+4. Input the WebDAV address, account, password, **Depth Header Sent To Servers="only supports depth='1'"** in sync-it-simply-stupid settings.
    ![](./owncloud_rs_settings.png)
-5. In cloud-sync setting page, click "Check Connectivity".
+5. In sync-it-simply-stupid setting page, click "Check Connectivity".
 6. Sync!
    ![](./owncloud_files.png)

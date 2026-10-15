@@ -6,7 +6,7 @@ The plugin works under the browser environment in Obsidian, so CORS is an issue.
 
 The list is for information purposes only.
 
-**Note:** entries marked "(PRO)" are not supported by Cloud Sync. Such services may still be reachable through their S3 or WebDAV interface, if they offer one.
+**Note:** entries marked "(PRO)" are not supported by Sync It Simply Stupid. Such services may still be reachable through their S3 or WebDAV interface, if they offer one.
 
 
 | Service | Connectable | by S3 | by WebDAV | by other protocol |

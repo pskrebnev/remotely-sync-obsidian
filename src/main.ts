@@ -18,7 +18,7 @@ import {
   setIcon,
 } from "obsidian";
 import type {
-  CloudSyncPluginSettings,
+  SyncItSimplyStupidPluginSettings,
   SyncTriggerSourceType,
 } from "./baseTypes";
 import {
@@ -93,11 +93,11 @@ import {
   getSecretBackend,
   splitSecretsForDisk,
 } from "./secretStore";
-import { CloudSyncSettingTab } from "./settings";
+import { SyncItSimplyStupidSettingTab } from "./settings";
 import { syncer } from "./sync";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
 
-const DEFAULT_SETTINGS: CloudSyncPluginSettings = {
+const DEFAULT_SETTINGS: SyncItSimplyStupidPluginSettings = {
   s3: DEFAULT_S3_CONFIG,
   webdav: DEFAULT_WEBDAV_CONFIG,
   dropbox: DEFAULT_DROPBOX_CONFIG,
@@ -115,7 +115,7 @@ const DEFAULT_SETTINGS: CloudSyncPluginSettings = {
   syncConfigDir: false,
   syncBookmarks: false,
   syncUnderscoreItems: false,
-  lang: "auto",
+  lang: "en",
   logToDB: false,
   skipSizeLargerThan: -1,
   ignorePaths: [],
@@ -142,9 +142,9 @@ interface OAuth2Info {
   revokeAuthSetting?: Setting;
 }
 
-const iconNameSyncWait = `cloud-sync-sync-wait`;
-const iconNameSyncRunning = `cloud-sync-sync-running`;
-const iconNameLogs = `cloud-sync-logs`;
+const iconNameSyncWait = `sync-it-simply-stupid-sync-wait`;
+const iconNameSyncRunning = `sync-it-simply-stupid-sync-running`;
+const iconNameLogs = `sync-it-simply-stupid-logs`;
 
 const getIconSvg = () => {
   const iconSvgSyncWait = createElement(RotateCcw);
@@ -191,8 +191,8 @@ const getStatusBarShortMsgFromSyncSource = (
   }
 };
 
-export default class CloudSyncPlugin extends Plugin {
-  settings!: CloudSyncPluginSettings;
+export default class SyncItSimplyStupidPlugin extends Plugin {
+  settings!: SyncItSimplyStupidPluginSettings;
   db!: InternalDBs;
   isSyncing!: boolean;
   hasPendingSyncOnSave!: boolean;
@@ -892,7 +892,7 @@ export default class CloudSyncPlugin extends Plugin {
       },
     });
 
-    this.addSettingTab(new CloudSyncSettingTab(this.app, this));
+    this.addSettingTab(new SyncItSimplyStupidSettingTab(this.app, this));
 
     // this.registerDomEvent(document, "click", (evt: MouseEvent) => {
     //   console.info("click", evt);
@@ -943,6 +943,10 @@ export default class CloudSyncPlugin extends Plugin {
       messyConfigToNormal(await this.loadData())
     );
     fillSecretsFromBackend(this.settings, getSecretBackend(this.app));
+    // English by default: "auto" followed Obsidian's locale
+    if (this.settings.lang === undefined || this.settings.lang === "auto") {
+      this.settings.lang = "en";
+    }
     for (const msg of migrateRemovedFeatureSettings(this.settings)) {
       new Notice(`${this.manifest.name}: ${msg}`, 15 * 1000);
     }
@@ -1129,7 +1133,7 @@ export default class CloudSyncPlugin extends Plugin {
 
   /**
    * Finds the rclone salt for this sync, following
-   * _cloud-sync-encryption.json in the remote (see encryptionParams.ts).
+   * _sync-it-simply-stupid-encryption.json in the remote (see encryptionParams.ts).
    */
   async resolveEncryptionSalt(fsRemote: FakeFs): Promise<string> {
     const t = (x: TransItemType, vars?: any) => {
