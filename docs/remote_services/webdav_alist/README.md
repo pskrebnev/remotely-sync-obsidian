@@ -17,7 +17,7 @@ English | [中文](./README.zh-cn.md)
    http[s]://domain:port/dav/[mountpath url encoded]
    http://127.0.0.1:5244/dav/alisttest%20davpath
    ```
-4. In cloud-sync setting page, select webdav type, then input the **full address with mount path**/account/password.
+4. In sync-sync-sync setting page, select webdav type, then input the **full address with mount path**/account/password.
    ![](./alist_rs_settings.en.png)
-5. In cloud-sync setting page, click "Check Connectivity".
+5. In sync-sync-sync setting page, click "Check Connectivity".
 6. Sync!

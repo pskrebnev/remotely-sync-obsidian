@@ -25,7 +25,7 @@ Phases 1–5 are implemented with Cloudflare R2 and AWS S3 in mind. Full details
 | 9 | Done (S3, WebDAV, Webdis) | The S3 client refuses `http://` endpoints unless the host is loopback or private (RFC 1918, `.local`, `::1`, `fc00::/7`), so local MinIO still works. The settings field shows a warning while typing. WebDAV and Webdis followed in Phase 5. |
 | 5 | Done (workaround) | Phase 2: this plugin's `data.json` is never listed locally, is hidden from remote walks, and can't be written, renamed or deleted by sync. The config-sync dialog warns about plugin code and missing encryption. The sync engine itself is unchanged (#17). |
 | 6 | Done (S3, E2E password, WebDAV, Webdis, Dropbox, OneDrive) | Phase 2: on Obsidian 1.11.4+, the S3 access key, secret key and encryption password are stored in `app.secretStorage`, and `data.json` keeps empty strings. They migrate automatically and fall back to `data.json` if storage is unavailable. Phase 5 added WebDAV/Webdis passwords, WebDAV custom headers and Dropbox/OneDrive tokens. |
-| 7 | Done (rclone + salt) | Phase 3: per-vault random rclone salt published in `_cloud-sync-encryption.json`; other devices adopt it; "Re-encrypt remote" converts legacy rclone and openssl vaults (publish salt → copy → verify → delete; resumable). Sync refuses to put plain files into an encrypted remote. rclone's scrypt cost is unchanged, to stay rclone-compatible. |
+| 7 | Done (rclone + salt) | Phase 3: per-vault random rclone salt published in `_sync-sync-sync-encryption.json`; other devices adopt it; "Re-encrypt remote" converts legacy rclone and openssl vaults (publish salt → copy → verify → delete; resumable). Sync refuses to put plain files into an encrypted remote. rclone's scrypt cost is unchanged, to stay rclone-compatible. |
 | 10 | Done | "Output settings to console" now prints a redacted copy. |
 | 15 | Done (`src/`) | Import errors no longer echo the raw link. OAuth error notices and errors pass through `redactSecrets`. |
 | 17 | Done (option C) | `pro/` removed entirely; the sync engine was restored from the Apache-licensed v0.4.25; the repository is Apache 2.0 only. Features that existed only in PolyForm code were removed or are refused safely. See [security-changes.md](./security-changes.md#removal-of-pro-code). Git history still contains `pro/`. |
@@ -49,7 +49,7 @@ Severity: **Critical** = remote attacker can steal data/credentials with little 
 
 | # | Severity | Issue | Location |
 |---|----------|-------|----------|
-| 1 | Critical | `obsidian://cloud-sync` link silently overwrites all plugin settings | `src/main.ts:586-602`, `src/importExport.ts:102-145` |
+| 1 | Critical | `obsidian://sync-sync-sync` link silently overwrites all plugin settings | `src/main.ts:586-602`, `src/importExport.ts:102-145` |
 | 2 | High | OAuth tokens and auth codes written to console | `src/main.ts:888,898,959,968,1015,1025,1073,1082,1129,1140` |
 | 3 | High | No OAuth `state` check; Pro/Box/etc. callbacks run with no pending flow (login CSRF) | `src/main.ts:615-1150`, `pro/src/account.ts:35` |
 | 4 | High | Remote file paths are not checked for `..` / absolute paths (path traversal on download) | `pro/src/sync.ts:248`, `src/misc.ts:21-40`, `src/fsLocal.ts:154-180` |
@@ -71,8 +71,8 @@ Severity: **Critical** = remote attacker can steal data/credentials with little 
 
 ## Details and fixes
 
-### 1. Settings injection through `obsidian://cloud-sync` (Critical)
-**Problem.** Any web page, email, or note can contain `obsidian://cloud-sync?func=settings&vault=<name>&data=<json>`. Clicking it runs `Object.assign(this.settings, data)` and saves, with no confirmation. The only check is the vault name, which is easy to guess (often "Obsidian Vault" or visible in screenshots). An attacker can point S3/WebDAV at their own server and switch on auto-sync. On the next sync, the whole vault is uploaded to them. The same `Object.assign` also accepts any key, including `password`, `syncConfigDir`, `serviceType`, and auto-run intervals.
+### 1. Settings injection through `obsidian://sync-sync-sync` (Critical)
+**Problem.** Any web page, email, or note can contain `obsidian://sync-sync-sync?func=settings&vault=<name>&data=<json>`. Clicking it runs `Object.assign(this.settings, data)` and saves, with no confirmation. The only check is the vault name, which is easy to guess (often "Obsidian Vault" or visible in screenshots). An attacker can point S3/WebDAV at their own server and switch on auto-sync. On the next sync, the whole vault is uploaded to them. The same `Object.assign` also accepts any key, including `password`, `syncConfigDir`, `serviceType`, and auto-run intervals.
 
 **Fix.**
 1. Before applying an import, show a confirmation modal that lists exactly which sections and keys will change, and highlight endpoint or host changes.
@@ -97,12 +97,12 @@ Severity: **Critical** = remote attacker can steal data/credentials with little 
 - Use PKCE for every provider that supports it.
 
 ### 4. Path traversal from remote (High)
-**Problem.** Remote keys come from a server, which may be compromised, or from `_cloud-sync-metadata-on-remote` content. `isHiddenPath` skips `..` segments, so `../../x` and `/abs/path` are neither hidden nor rejected. They then reach `vault.adapter.writeBinary`, `rename`, and `rm`. The desktop `FileSystemAdapter` joins this with the vault base path, so a crafted name can write or delete outside the vault, for example in `~/.ssh` or another vault's `.obsidian/plugins`.
+**Problem.** Remote keys come from a server, which may be compromised, or from `_sync-sync-sync-metadata-on-remote` content. `isHiddenPath` skips `..` segments, so `../../x` and `/abs/path` are neither hidden nor rejected. They then reach `vault.adapter.writeBinary`, `rename`, and `rm`. The desktop `FileSystemAdapter` joins this with the vault base path, so a crafted name can write or delete outside the vault, for example in `~/.ssh` or another vault's `.obsidian/plugins`.
 
 **Fix.** Add one `assertSafeVaultPath(key)` function and call it on every key from remote listings, from decrypted names, and from metadata-on-remote, before any local write, rename, or delete. It should reject: any `..` segment, a leading `/`, Windows drive letters or `\`, NUL and control characters, and an empty result after normalization. Log and skip unsafe entries instead of throwing for the whole sync. Add tests with malicious names for each backend's `walk()`.
 
 ### 5. Config-dir sync leaks credentials and imports code (High)
-**Problem.** With `syncConfigDir`, everything in `.obsidian/` is synced. That includes `.obsidian/plugins/cloud-sync/data.json` with all tokens, which is uploaded in plaintext if E2E encryption is off. It also includes other plugins' `main.js`. Anyone with write access to the bucket can push JavaScript that runs in every synced Obsidian instance.
+**Problem.** With `syncConfigDir`, everything in `.obsidian/` is synced. That includes `.obsidian/plugins/sync-sync-sync/data.json` with all tokens, which is uploaded in plaintext if E2E encryption is off. It also includes other plugins' `main.js`. Anyone with write access to the bucket can push JavaScript that runs in every synced Obsidian instance.
 
 **Fix.**
 - Always exclude this plugin's own `data.json` from sync, whatever the settings say.

@@ -1,4 +1,4 @@
-# Translations for Cloud Sync
+# Translations for Sync Sync Sync
 
 ## How To Add A Language?
 

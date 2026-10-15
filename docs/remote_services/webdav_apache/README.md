@@ -27,7 +27,7 @@ docker container run --rm \
 
 We do not have `--detach` prameter here, so the server will be closed as soon as you terminate the program or close terminal. You might want to adjust the settings further by yourself.
 
-Then, in Cloud Sync's setting, set these (auth type should always be `Basic`):
+Then, in Sync Sync Sync's setting, set these (auth type should always be `Basic`):
 
 ```
 Server: http://127.0.0.1:8080
@@ -53,7 +53,7 @@ ls ./dav1/data/
 
 # Auth type
 
-You can change the auth type while calling Docker, between `Basic` and `Digest`. And please rememberto adjust the Cloud Sync's settings. Both works.
+You can change the auth type while calling Docker, between `Basic` and `Digest`. And please rememberto adjust the Sync Sync Sync's settings. Both works.
 
 # Notice
 

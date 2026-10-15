@@ -1,4 +1,4 @@
-import type { CloudSyncPluginSettings } from "./baseTypes";
+import type { SyncSyncSyncPluginSettings } from "./baseTypes";
 
 /**
  * Settings this plugin's sync engine does not support. They can still reach
@@ -26,7 +26,7 @@ const SUPPORTED_SYNC_DIRECTIONS = new Set([
  * Mutates `settings`.
  */
 export const migrateRemovedFeatureSettings = (
-  settings: CloudSyncPluginSettings
+  settings: SyncSyncSyncPluginSettings
 ): string[] => {
   const messages: string[] = [];
   const s = settings as any;
@@ -60,7 +60,7 @@ export const migrateRemovedFeatureSettings = (
  * Sync refuses to run while one of these is set.
  */
 export const getUnsupportedSyncSettingsReason = (
-  settings: CloudSyncPluginSettings
+  settings: SyncSyncSyncPluginSettings
 ): string | undefined => {
   const s = settings as any;
   if ((s.onlyAllowPaths ?? []).length > 0) {

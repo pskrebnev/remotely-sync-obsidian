@@ -2,7 +2,7 @@
 
 ## What?
 
-The main basic source code for Cloud Sync.
+The main basic source code for Sync Sync Sync.
 
 ## License
 

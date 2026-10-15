@@ -45,8 +45,8 @@ Everything else in `main.js` comes from the bundled libraries, as license header
 
 ## What stays on your device
 
-- **Settings:** `.obsidian/plugins/cloud-sync/data.json`. Credentials are kept in Obsidian's secret storage on Obsidian 1.11.4+, not in this file.
-- **Sync history and logs:** Obsidian's local IndexedDB (database `cloudsyncdb`).
+- **Settings:** `.obsidian/plugins/sync-sync-sync/data.json`. Credentials are kept in Obsidian's secret storage on Obsidian 1.11.4+, not in this file.
+- **Sync history and logs:** Obsidian's local IndexedDB (database `syncsyncsyncdb`).
 - **Settings exports (QR code or link):** created locally and encrypted with your passphrase. The QR image is generated on the device; no QR service is used.
 
 ## How to re-check after changes

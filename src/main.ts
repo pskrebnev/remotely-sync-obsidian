@@ -18,7 +18,7 @@ import {
   setIcon,
 } from "obsidian";
 import type {
-  CloudSyncPluginSettings,
+  SyncSyncSyncPluginSettings,
   SyncTriggerSourceType,
 } from "./baseTypes";
 import {
@@ -93,11 +93,11 @@ import {
   getSecretBackend,
   splitSecretsForDisk,
 } from "./secretStore";
-import { CloudSyncSettingTab } from "./settings";
+import { SyncSyncSyncSettingTab } from "./settings";
 import { syncer } from "./sync";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
 
-const DEFAULT_SETTINGS: CloudSyncPluginSettings = {
+const DEFAULT_SETTINGS: SyncSyncSyncPluginSettings = {
   s3: DEFAULT_S3_CONFIG,
   webdav: DEFAULT_WEBDAV_CONFIG,
   dropbox: DEFAULT_DROPBOX_CONFIG,
@@ -142,9 +142,9 @@ interface OAuth2Info {
   revokeAuthSetting?: Setting;
 }
 
-const iconNameSyncWait = `cloud-sync-sync-wait`;
-const iconNameSyncRunning = `cloud-sync-sync-running`;
-const iconNameLogs = `cloud-sync-logs`;
+const iconNameSyncWait = `sync-sync-sync-sync-wait`;
+const iconNameSyncRunning = `sync-sync-sync-sync-running`;
+const iconNameLogs = `sync-sync-sync-logs`;
 
 const getIconSvg = () => {
   const iconSvgSyncWait = createElement(RotateCcw);
@@ -191,8 +191,8 @@ const getStatusBarShortMsgFromSyncSource = (
   }
 };
 
-export default class CloudSyncPlugin extends Plugin {
-  settings!: CloudSyncPluginSettings;
+export default class SyncSyncSyncPlugin extends Plugin {
+  settings!: SyncSyncSyncPluginSettings;
   db!: InternalDBs;
   isSyncing!: boolean;
   hasPendingSyncOnSave!: boolean;
@@ -892,7 +892,7 @@ export default class CloudSyncPlugin extends Plugin {
       },
     });
 
-    this.addSettingTab(new CloudSyncSettingTab(this.app, this));
+    this.addSettingTab(new SyncSyncSyncSettingTab(this.app, this));
 
     // this.registerDomEvent(document, "click", (evt: MouseEvent) => {
     //   console.info("click", evt);
@@ -1133,7 +1133,7 @@ export default class CloudSyncPlugin extends Plugin {
 
   /**
    * Finds the rclone salt for this sync, following
-   * _cloud-sync-encryption.json in the remote (see encryptionParams.ts).
+   * _sync-sync-sync-encryption.json in the remote (see encryptionParams.ts).
    */
   async resolveEncryptionSalt(fsRemote: FakeFs): Promise<string> {
     const t = (x: TransItemType, vars?: any) => {

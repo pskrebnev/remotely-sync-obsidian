@@ -2,7 +2,7 @@
 
 The following tutorial uses Nginx with Docker in Linux, using the image [docker-nginx-webdav-nononsense](https://github.com/dgraziotin/docker-nginx-webdav-nononsense). It contains `ngx_http_dav_module` and `nginx-dav-ext-module`.
 
-The description is adapted from the pull request [`dgraziotin/docker-nginx-webdav-nononsense#123`](https://github.com/dgraziotin/docker-nginx-webdav-nononsense/pull/123) by Cloud Sync author.
+The description is adapted from the pull request [`dgraziotin/docker-nginx-webdav-nononsense#123`](https://github.com/dgraziotin/docker-nginx-webdav-nononsense/pull/123) by Sync Sync Sync author.
 
 Assuming you want a webdav server on Linux satisfying that:
 
@@ -28,7 +28,7 @@ docker container run --rm \
 
 We do not have `--detach` prameter here, so the server will be closed as soon as you terminate the program or close terminal. You might want to adjust the settings further by yourself.
 
-Then, in Cloud Sync's setting, set these (auth type should always be `Basic`):
+Then, in Sync Sync Sync's setting, set these (auth type should always be `Basic`):
 
 ```
 Server: http://127.0.0.1:8080

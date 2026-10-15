@@ -25,7 +25,7 @@ This app is NOT an official Redis® Ltd / Redis® OSS / Webdis product. Redis is
 2. Install Webdis.
 3. In `webdis.json`, configure the ACL for using password and username, and / or ip filters. **Never expose your Redis® or Webdis to public without security protection!!!**.
 4. Install and configure reverse proxy, firewall, https, etc. (You have to configure HTTPS correctly if you want to use it on iOS)
-5. In Cloud Sync settings, enter your server address, username, password, and adjust the "base dir". Check connection.
+5. In Sync Sync Sync settings, enter your server address, username, password, and adjust the "base dir". Check connection.
 6. Sync!
 7. Serveral keys and values will be generated in your Redis® database:
 

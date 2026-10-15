@@ -10,7 +10,7 @@ https://www.backblaze.com/cloud-storage
 
 2. Please be aware that, though B2 provides some free quota, **it may still cost you money if the usage of storage or api requests exceed a certain value!!!** Especially pay attention to the api requests!!!
 
-3. Create a **bucket**, you can leave the default settings, or you can enable the encryption (which is different from what you can set in Cloud Sync):
+3. Create a **bucket**, you can leave the default settings, or you can enable the encryption (which is different from what you can set in Sync Sync Sync):
 
    ![](./s3_backblaze_b2-1-bucket.png)
    ![](./s3_backblaze_b2-2-create_bucket.png)
@@ -32,14 +32,14 @@ https://www.backblaze.com/cloud-storage
 
 8. Save `keyID` and `applicationKey` — they will be used later.
 
-9. Go to Cloud Sync settings in Obsidian and:
+9. Go to Sync Sync Sync settings in Obsidian and:
 
    - Choose `S3 or compatibile` in **Remote Service**:
-   - Copy `Endpoint` from Backblaze (see 3. above) to `Endpoint` in Cloud Sync
-   - From `endpoint` take `region` (eg. `us-east-005`) and paste it in `endpoint` in Cloud Sync
-   - Copy `keyID` (see 7. above) to `Access Key ID` in Cloud Sync
-   - Copy `applicationKey` (see 7. above) to `Secret Access Key` in Cloud Sync
-   - Copy `bucketname` (see 4. above) to `Bucket Name` in Cloud Sync
+   - Copy `Endpoint` from Backblaze (see 3. above) to `Endpoint` in Sync Sync Sync
+   - From `endpoint` take `region` (eg. `us-east-005`) and paste it in `endpoint` in Sync Sync Sync
+   - Copy `keyID` (see 7. above) to `Access Key ID` in Sync Sync Sync
+   - Copy `applicationKey` (see 7. above) to `Secret Access Key` in Sync Sync Sync
+   - Copy `bucketname` (see 4. above) to `Bucket Name` in Sync Sync Sync
      ![](./s3_backblaze_b2-7-copy_paste.png)
 
 10. **Enable Bypass CORS**:

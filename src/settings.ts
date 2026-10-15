@@ -48,7 +48,7 @@ import {
   upsertLastFailedSyncTimeByVault,
   upsertLastSuccessSyncTimeByVault,
 } from "./localdb";
-import type CloudSyncPlugin from "./main"; // unavoidable
+import type SyncSyncSyncPlugin from "./main"; // unavoidable
 import {
   changeMobileStatusBar,
   checkHasSpecialCharForDir,
@@ -59,12 +59,12 @@ import {
 import { DEFAULT_PROFILER_CONFIG } from "./profiler";
 
 class PasswordModal extends Modal {
-  plugin: CloudSyncPlugin;
+  plugin: SyncSyncSyncPlugin;
   newPassword: string;
   encryptionMethodSetting: Setting;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncSyncSyncPlugin,
     newPassword: string,
     encryptionMethodSetting: Setting
   ) {
@@ -146,8 +146,8 @@ class PasswordModal extends Modal {
 }
 
 class EncryptionMethodModal extends Modal {
-  plugin: CloudSyncPlugin;
-  constructor(app: App, plugin: CloudSyncPlugin) {
+  plugin: SyncSyncSyncPlugin;
+  constructor(app: App, plugin: SyncSyncSyncPlugin) {
     super(app);
     this.plugin = plugin;
   }
@@ -185,12 +185,12 @@ class EncryptionMethodModal extends Modal {
 }
 
 export class ChangeRemoteBaseDirModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncSyncSyncPlugin;
   readonly newRemoteBaseDir: string;
   readonly service: SUPPORTED_SERVICES_TYPE_WITH_REMOTE_BASE_DIR;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncSyncSyncPlugin,
     newRemoteBaseDir: string,
     service: SUPPORTED_SERVICES_TYPE_WITH_REMOTE_BASE_DIR
   ) {
@@ -283,9 +283,9 @@ export class ChangeRemoteBaseDirModal extends Modal {
  * thus a new Modal here
  */
 class ChangeS3RemotePrefixModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncSyncSyncPlugin;
   readonly newRemotePrefix: string;
-  constructor(app: App, plugin: CloudSyncPlugin, newRemotePrefix: string) {
+  constructor(app: App, plugin: SyncSyncSyncPlugin, newRemotePrefix: string) {
     super(app);
     this.plugin = plugin;
     this.newRemotePrefix = newRemotePrefix;
@@ -361,13 +361,13 @@ class ChangeS3RemotePrefixModal extends Modal {
 }
 
 class DropboxAuthModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncSyncSyncPlugin;
   readonly authDiv: HTMLDivElement;
   readonly revokeAuthDiv: HTMLDivElement;
   readonly revokeAuthSetting: Setting;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncSyncSyncPlugin,
     authDiv: HTMLDivElement,
     revokeAuthDiv: HTMLDivElement,
     revokeAuthSetting: Setting
@@ -524,13 +524,13 @@ class DropboxAuthModal extends Modal {
 }
 
 export class OnedriveAuthModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncSyncSyncPlugin;
   readonly authDiv: HTMLDivElement;
   readonly revokeAuthDiv: HTMLDivElement;
   readonly revokeAuthSetting: Setting;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncSyncSyncPlugin,
     authDiv: HTMLDivElement,
     revokeAuthDiv: HTMLDivElement,
     revokeAuthSetting: Setting
@@ -598,12 +598,12 @@ export class OnedriveAuthModal extends Modal {
 }
 
 export class OnedriveRevokeAuthModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncSyncSyncPlugin;
   readonly authDiv: HTMLDivElement;
   readonly revokeAuthDiv: HTMLDivElement;
   constructor(
     app: App,
-    plugin: CloudSyncPlugin,
+    plugin: SyncSyncSyncPlugin,
     authDiv: HTMLDivElement,
     revokeAuthDiv: HTMLDivElement
   ) {
@@ -668,9 +668,13 @@ export class OnedriveRevokeAuthModal extends Modal {
 }
 
 class SyncConfigDirModal extends Modal {
-  plugin: CloudSyncPlugin;
+  plugin: SyncSyncSyncPlugin;
   saveDropdownFunc: () => void;
-  constructor(app: App, plugin: CloudSyncPlugin, saveDropdownFunc: () => void) {
+  constructor(
+    app: App,
+    plugin: SyncSyncSyncPlugin,
+    saveDropdownFunc: () => void
+  ) {
     super(app);
     this.plugin = plugin;
     this.saveDropdownFunc = saveDropdownFunc;
@@ -724,10 +728,10 @@ class SyncConfigDirModal extends Modal {
 }
 
 class ReencryptModal extends Modal {
-  readonly plugin: CloudSyncPlugin;
+  readonly plugin: SyncSyncSyncPlugin;
   readonly onFinish: () => void;
   running: boolean;
-  constructor(app: App, plugin: CloudSyncPlugin, onFinish: () => void) {
+  constructor(app: App, plugin: SyncSyncSyncPlugin, onFinish: () => void) {
     super(app);
     this.plugin = plugin;
     this.onFinish = onFinish;
@@ -799,9 +803,9 @@ class ReencryptModal extends Modal {
 }
 
 class ExportSettingsQrCodeModal extends Modal {
-  plugin: CloudSyncPlugin;
+  plugin: SyncSyncSyncPlugin;
   exportType: QRExportType;
-  constructor(app: App, plugin: CloudSyncPlugin, exportType: QRExportType) {
+  constructor(app: App, plugin: SyncSyncSyncPlugin, exportType: QRExportType) {
     super(app);
     this.plugin = plugin;
     this.exportType = exportType;
@@ -924,10 +928,10 @@ export const wrapTextWithPasswordHide = (text: TextComponent) => {
   return text;
 };
 
-export class CloudSyncSettingTab extends PluginSettingTab {
-  readonly plugin: CloudSyncPlugin;
+export class SyncSyncSyncSettingTab extends PluginSettingTab {
+  readonly plugin: SyncSyncSyncPlugin;
 
-  constructor(app: App, plugin: CloudSyncPlugin) {
+  constructor(app: App, plugin: SyncSyncSyncPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -942,7 +946,7 @@ export class CloudSyncSettingTab extends PluginSettingTab {
       return this.plugin.i18n.t(x, vars);
     };
 
-    containerEl.createEl("h1", { text: "Cloud Sync" });
+    containerEl.createEl("h1", { text: "Sync Sync Sync" });
 
     //////////////////////////////////////////////////
     // below for service chooser (part 1/2)
@@ -2586,7 +2590,7 @@ export class CloudSyncSettingTab extends PluginSettingTab {
       .setDesc(t("settings_import_desc"))
       .addText((text) =>
         text
-          .setPlaceholder("obsidian://cloud-sync?func=settings&...")
+          .setPlaceholder("obsidian://sync-sync-sync?func=settings&...")
           .setValue("")
           .onChange((val) => {
             importSettingVal = val;

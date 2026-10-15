@@ -18,4 +18,4 @@ https://www.openmediavault.org
    * Storage → Shared Folders select the corresponding shared folder → Permissions → Set both {your username} and "webdav-users" group to "Read/Write" permissions
 7. Back to Shared Folders, set specific Access Control List permissions
    * Select the shared folder → Access Control List → set {your username}, "webdav-users" and "www-data" to "Read/Write" permissions
-8. Install Cloud Sync in Obsidian, select WebDAV, add the URL http://[your-server-ip]/webdav, use your user credentials and connect.
+8. Install Sync Sync Sync in Obsidian, select WebDAV, add the URL http://[your-server-ip]/webdav, use your user credentials and connect.

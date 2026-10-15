@@ -1,4 +1,4 @@
-import type { CloudSyncPluginSettings } from "./baseTypes";
+import type { SyncSyncSyncPluginSettings } from "./baseTypes";
 
 /**
  * Credentials are kept in Obsidian's SecretStorage (Obsidian 1.11.4+)
@@ -37,7 +37,7 @@ export const secretIdFor = (namespace: string, field: readonly string[]) => {
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-");
-  return `cloud-sync-${namespace}-${name}`;
+  return `sync-sync-sync-${namespace}-${name}`;
 };
 
 export const newSecretNamespace = () => {
@@ -86,7 +86,7 @@ export const getSecretBackend = (app: unknown): SecretBackend | undefined => {
  * Mutates `settings`.
  */
 export const fillSecretsFromBackend = (
-  settings: CloudSyncPluginSettings,
+  settings: SyncSyncSyncPluginSettings,
   backend: SecretBackend | undefined
 ) => {
   const namespace = settings.secretStorageNamespace;
@@ -112,9 +112,9 @@ export const fillSecretsFromBackend = (
  * Mutates `settings` only to assign a namespace on first use.
  */
 export const splitSecretsForDisk = (
-  settings: CloudSyncPluginSettings,
+  settings: SyncSyncSyncPluginSettings,
   backend: SecretBackend | undefined
-): CloudSyncPluginSettings => {
+): SyncSyncSyncPluginSettings => {
   if (backend === undefined) {
     return settings;
   }

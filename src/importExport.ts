@@ -3,8 +3,8 @@ import QRCode from "qrcode";
 
 import {
   COMMAND_URI,
-  type CloudSyncPluginSettings,
   type QRExportType,
+  type SyncSyncSyncPluginSettings,
   type UriParams,
 } from "./baseTypes";
 import { encryptExportPayload } from "./exportCrypto";
@@ -19,13 +19,13 @@ export const EXPORT_ENCRYPTION_VERSION = "1";
  * encrypted with `passphrase` (see exportCrypto.ts).
  */
 export const exportQrCodeUri = async (
-  settings: CloudSyncPluginSettings,
+  settings: SyncSyncSyncPluginSettings,
   currentVaultName: string,
   pluginVersion: string,
   exportFields: QRExportType,
   passphrase: string
 ) => {
-  let settings2: Partial<CloudSyncPluginSettings> = {};
+  let settings2: Partial<SyncSyncSyncPluginSettings> = {};
 
   if (exportFields === "basic_and_advanced") {
     settings2 = cloneDeep(settings);
@@ -67,7 +67,7 @@ export const exportQrCodeUri = async (
 export interface ProcessQrCodeResultType {
   status: "error" | "ok";
   message: string;
-  result?: CloudSyncPluginSettings;
+  result?: SyncSyncSyncPluginSettings;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface ProcessQrCodeResultType {
  * @param input
  */
 export const parseUriByHand = (input: string) => {
-  if (!input.startsWith("obsidian://cloud-sync?func=settings&")) {
+  if (!input.startsWith("obsidian://sync-sync-sync?func=settings&")) {
     throw Error(`not valid string`);
   }
 
@@ -108,7 +108,7 @@ export const importQrCodeUri = (
     };
   }
 
-  let settings = {} as CloudSyncPluginSettings;
+  let settings = {} as SyncSyncSyncPluginSettings;
   try {
     settings = JSON.parse(params.data);
   } catch (e) {
