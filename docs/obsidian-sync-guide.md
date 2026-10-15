@@ -80,7 +80,7 @@ Then copy `main.js`, `manifest.json` and `styles.css` into
    - **Permissions:** *Object Read & Write*.
    - **Specify bucket:** only the vault's bucket. Don't use an account-wide or admin token.
 3. Save the **Access Key ID** and **Secret Access Key** shown after creation. The secret is shown only once.
-4. Note your **endpoint**: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`. It's shown on the token page and in the bucket settings.
+4. Note your **endpoint**: open the bucket → **Settings → General → S3 API**. It's shown as `https://<ACCOUNT_ID>.r2.cloudflarestorage.com/<bucket-name>`; use it **without** the `/<bucket-name>` at the end.
 
 **Complete Cloudflare R2 walkthrough** (token permissions, every setting, troubleshooting): [docs/remote_services/s3_cloudflare_r2](./remote_services/s3_cloudflare_r2/README.md).
 
@@ -105,7 +105,7 @@ Open *Settings → Sync It Simply Stupid*:
    | Setting | Cloudflare R2 | AWS S3 |
    |---|---|---|
    | Endpoint | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` | `https://s3.<region>.amazonaws.com` |
-   | Region | `auto` (or `us-east-1`) | your bucket's region, e.g. `eu-central-1` |
+   | Region | `auto` (not the bucket's location such as `EEUR`) | your bucket's region, e.g. `eu-central-1` |
    | Access Key ID | from the API token | from the IAM access key |
    | Secret Access Key | from the API token | from the IAM access key |
    | Bucket Name | your bucket | your bucket |
