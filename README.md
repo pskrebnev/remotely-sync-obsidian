@@ -42,6 +42,14 @@ This is yet another unofficial sync plugin for Obsidian.
 - **Obsidian API on Mobile has performance issues syncing large files (>= 50 MB).**
   - Setting the "Skip Large Files" option can help resolve issues related to syncing large files.
 
+## Security Hardening
+This fork is being hardened in phases, with Cloudflare R2 and AWS S3 first. Every change is documented in [docs/security-changes.md](./docs/security-changes.md); the findings and the plan are in [docs/security-fix-plan.md](./docs/security-fix-plan.md).
+- [Phase 1: R2 / AWS S3 critical path](./docs/security-changes.md#phase-1-cloudflare-r2--aws-s3-critical-path): imported settings links are validated and must be confirmed; S3 endpoints must use https (except local/private hosts); OAuth codes, tokens and other secrets no longer appear in logs or notices; local file operations can't escape the vault.
+- [Phase 2: plugin settings file and credentials](./docs/security-changes.md#phase-2-plugin-settings-file-and-credential-storage): this plugin's `data.json` (with all credentials) is never synced to or from the bucket; R2/S3 keys and the encryption password are kept in Obsidian's secret storage (Obsidian 1.11.4+) instead of `data.json`; enabling config-folder sync shows a security warning.
+- [Phase 3: encryption](./docs/security-changes.md#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports): new encrypted vaults use rclone encryption with a random per-vault salt (shared through a small file in the bucket); a "Re-encrypt remote" action converts existing vaults (including old openssl ones) safely and resumably; exported settings links and QR codes are encrypted with a passphrase.
+- [Phase 4: CI and dependencies](./docs/security-changes.md#phase-4-ci-and-dependencies): CI fails on unreviewed high/critical advisories in runtime dependencies; GitHub Actions are pinned to commit SHAs; Dependabot proposes weekly updates; unused native packages were removed and `uuid` was upgraded.
+- [Phase 5: other backends and low-severity items](./docs/security-changes.md#phase-5-other-backends-and-low-severity-items): OAuth login callbacks only exist for configured services and only act during a login you started; WebDAV and Webdis must use https (except local/private hosts); WebDAV/Webdis passwords and Dropbox/OneDrive tokens move to Obsidian's secret storage; HTML in translated texts is sanitized.
+
 ## Download and Install
 - Option #1: Use [Obsidian42 - BRAT](https://github.com/TfTHacker/obsidian42-brat) to install this plugin. Input `pskrebnev/remotely-sync-obsidian` in the configuration of BRAT.
 - Option #2: Manually download assets (`main.js`, `manifest.json`, `styles.css`) from the latest [release](https://github.com/pskrebnev/remotely-sync-obsidian/releases).

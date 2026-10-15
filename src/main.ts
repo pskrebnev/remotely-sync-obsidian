@@ -8,6 +8,7 @@ import {
   FileSystemAdapter,
   type Modal,
   Notice,
+  type ObsidianProtocolData,
   Platform,
   Plugin,
   type Setting,
@@ -24,12 +25,17 @@ import {
   setConfigBySuccessfullAuthInplace as setConfigBySuccessfullAuthInplacePro,
 } from "../pro/src/account";
 import {
+  BOX_CLIENT_ID,
   COMMAND_CALLBACK_BOX,
   COMMAND_CALLBACK_KOOFR,
   COMMAND_CALLBACK_ONEDRIVEFULL,
   COMMAND_CALLBACK_PCLOUD,
   COMMAND_CALLBACK_PRO,
   COMMAND_CALLBACK_YANDEXDISK,
+  KOOFR_CLIENT_ID,
+  PCLOUD_CLIENT_ID,
+  PRO_CLIENT_ID,
+  YANDEXDISK_CLIENT_ID,
 } from "../pro/src/baseTypesPro";
 import { DEFAULT_AZUREBLOBSTORAGE_CONFIG } from "../pro/src/fsAzureBlobStorage";
 import {
@@ -77,6 +83,14 @@ import { API_VER_ENSURE_REQURL_OK } from "./baseTypesObs";
 import { messyConfigToNormal, normalConfigToMessy } from "./configPersist";
 import { exportVaultSyncPlansToFiles } from "./debugMode";
 import {
+  decideEncryptionSalt,
+  newEncryptionSalt,
+  readRemoteEncryptionParams,
+  writeRemoteEncryptionParams,
+} from "./encryptionParams";
+import { decryptExportPayload } from "./exportCrypto";
+import type { FakeFs } from "./fsAll";
+import {
   DEFAULT_DROPBOX_CONFIG,
   sendAuthReq as sendAuthReqDropbox,
   setConfigBySuccessfullAuthInplace as setConfigBySuccessfullAuthInplaceDropbox,
@@ -95,7 +109,15 @@ import { DEFAULT_WEBDAV_CONFIG } from "./fsWebdav";
 import { DEFAULT_WEBDIS_CONFIG } from "./fsWebdis";
 import { I18n } from "./i18n";
 import type { LangTypeAndAuto, TransItemType } from "./i18n";
-import { importQrCodeUri } from "./importExport";
+import {
+  ImportPassphraseModal,
+  ImportSettingsConfirmModal,
+} from "./importConfirmModal";
+import { EXPORT_ENCRYPTION_VERSION, importQrCodeUri } from "./importExport";
+import {
+  applyImportedSettings,
+  sanitizeImportedSettings,
+} from "./importValidate";
 import {
   type InternalDBs,
   clearAllLoggerOutputRecords,
@@ -107,8 +129,18 @@ import {
   upsertLastSuccessSyncTimeByVault,
   upsertPluginVersionByVault,
 } from "./localdb";
-import { changeMobileStatusBar } from "./misc";
+import {
+  changeMobileStatusBar,
+  getOwnPluginDataFilePath,
+  redactSecrets,
+} from "./misc";
 import { DEFAULT_PROFILER_CONFIG, Profiler } from "./profiler";
+import { type RebuildResult, rebuildRemoteEncryption } from "./reencrypt";
+import {
+  fillSecretsFromBackend,
+  getSecretBackend,
+  splitSecretsForDisk,
+} from "./secretStore";
 import { RemotelySaveSettingTab } from "./settings";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
 
@@ -152,6 +184,7 @@ const DEFAULT_SETTINGS: RemotelySavePluginSettings = {
   obfuscateSettingFile: true,
   enableMobileStatusBar: false,
   encryptionMethod: "unknown",
+  encryptionSalt: "",
   profiler: DEFAULT_PROFILER_CONFIG,
   pro: DEFAULT_PRO_CONFIG,
 };
@@ -254,12 +287,6 @@ export default class RemotelySavePlugin extends Plugin {
       this.app.vault.getName(),
       async () => await this.saveSettings()
     );
-    const fsEncrypt = new FakeFsEncrypt(
-      fsRemote,
-      this.settings.password ?? "",
-      this.settings.encryptionMethod ?? "rclone-base64"
-    );
-
     const t = (x: TransItemType, vars?: any) => {
       return this.i18n.t(x, vars);
     };
@@ -483,6 +510,24 @@ export default class RemotelySavePlugin extends Plugin {
       return;
     }
 
+    let encryptionSalt: string;
+    try {
+      encryptionSalt = await this.resolveEncryptionSalt(fsRemote);
+    } catch (e) {
+      console.error(e);
+      getNotice(triggerSource, `${e}`, 10 * 1000);
+      return;
+    }
+    const fsEncrypt = new FakeFsEncrypt(
+      fsRemote,
+      this.settings.password ?? "",
+      this.settings.encryptionMethod ?? "rclone-base64",
+      encryptionSalt
+    );
+    fsEncrypt.hideKeys([
+      getOwnPluginDataFilePath(this.app.vault.configDir, this.manifest.id),
+    ]);
+
     const configSaver = async () => await this.saveSettings();
 
     await syncer(
@@ -584,21 +629,7 @@ export default class RemotelySavePlugin extends Plugin {
     this.enableAutoClearSyncPlanHist();
 
     this.registerObsidianProtocolHandler(COMMAND_URI, async (inputParams) => {
-      // console.debug(inputParams);
-      const parsed = importQrCodeUri(inputParams, this.app.vault.getName());
-      if (parsed.status === "error") {
-        new Notice(parsed.message);
-      } else {
-        const copied = cloneDeep(parsed.result);
-        // new Notice(JSON.stringify(copied))
-        this.settings = Object.assign({}, this.settings, copied);
-        this.saveSettings();
-        new Notice(
-          t("protocol_saveqr", {
-            manifestName: this.manifest.name,
-          })
-        );
-      }
+      this.importSettingsWithConfirmation(inputParams);
     });
 
     this.registerObsidianProtocolHandler(
@@ -606,18 +637,21 @@ export default class RemotelySavePlugin extends Plugin {
       async (inputParams) => {
         new Notice(
           t("protocol_callbacknotsupported", {
-            params: JSON.stringify(inputParams),
+            params: JSON.stringify(redactSecrets(inputParams)),
           })
         );
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_DROPBOX,
+      this.settings.dropbox.clientID,
+      true,
       async (inputParams) => {
         if (
           inputParams.code !== undefined &&
-          this.oauth2Info?.verifier !== undefined
+          this.oauth2Info?.verifier !== undefined &&
+          this.oauth2Info.verifier !== ""
         ) {
           if (this.oauth2Info.helperModal !== undefined) {
             const k = this.oauth2Info.helperModal.contentEl;
@@ -693,19 +727,22 @@ export default class RemotelySavePlugin extends Plugin {
           new Notice(t("protocol_dropbox_connect_fail"));
           throw Error(
             t("protocol_dropbox_connect_unknown", {
-              params: JSON.stringify(inputParams),
+              params: JSON.stringify(redactSecrets(inputParams)),
             })
           );
         }
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_ONEDRIVE,
+      this.settings.onedrive.clientID,
+      true,
       async (inputParams) => {
         if (
           inputParams.code !== undefined &&
-          this.oauth2Info?.verifier !== undefined
+          this.oauth2Info?.verifier !== undefined &&
+          this.oauth2Info.verifier !== ""
         ) {
           if (this.oauth2Info.helperModal !== undefined) {
             const k = this.oauth2Info.helperModal.contentEl;
@@ -733,8 +770,8 @@ export default class RemotelySavePlugin extends Plugin {
           );
 
           if ((rsp as any).error !== undefined) {
-            new Notice(`${JSON.stringify(rsp)}`);
-            throw Error(`${JSON.stringify(rsp)}`);
+            new Notice(`${JSON.stringify(redactSecrets(rsp))}`);
+            throw Error(`${JSON.stringify(redactSecrets(rsp))}`);
           }
 
           const self = this;
@@ -777,19 +814,22 @@ export default class RemotelySavePlugin extends Plugin {
           new Notice(t("protocol_onedrive_connect_fail"));
           throw Error(
             t("protocol_onedrive_connect_unknown", {
-              params: JSON.stringify(inputParams),
+              params: JSON.stringify(redactSecrets(inputParams)),
             })
           );
         }
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_ONEDRIVEFULL,
+      this.settings.onedrivefull.clientID,
+      true,
       async (inputParams) => {
         if (
           inputParams.code !== undefined &&
-          this.oauth2Info?.verifier !== undefined
+          this.oauth2Info?.verifier !== undefined &&
+          this.oauth2Info.verifier !== ""
         ) {
           if (this.oauth2Info.helperModal !== undefined) {
             const k = this.oauth2Info.helperModal.contentEl;
@@ -817,8 +857,8 @@ export default class RemotelySavePlugin extends Plugin {
           );
 
           if ((rsp as any).error !== undefined) {
-            new Notice(`${JSON.stringify(rsp)}`);
-            throw Error(`${JSON.stringify(rsp)}`);
+            new Notice(`${JSON.stringify(redactSecrets(rsp))}`);
+            throw Error(`${JSON.stringify(redactSecrets(rsp))}`);
           }
 
           const self = this;
@@ -862,15 +902,17 @@ export default class RemotelySavePlugin extends Plugin {
           new Notice(t("protocol_onedrivefull_connect_fail"));
           throw Error(
             t("protocol_onedrivefull_connect_unknown", {
-              params: JSON.stringify(inputParams),
+              params: JSON.stringify(redactSecrets(inputParams)),
             })
           );
         }
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_PRO,
+      PRO_CLIENT_ID,
+      true,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -885,9 +927,8 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqPro(
-          this.oauth2Info.verifier || "verifier",
+          this.oauth2Info.verifier!,
           inputParams.code,
           async (e: any) => {
             new Notice(t("protocol_pro_connect_fail"));
@@ -895,7 +936,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplacePro(
@@ -940,8 +980,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_BOX,
+      BOX_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -956,7 +998,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqBox(
           inputParams.code,
           async (e: any) => {
@@ -965,7 +1006,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplaceBox(
@@ -996,8 +1036,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_PCLOUD,
+      PCLOUD_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1012,7 +1054,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqPCloud(
           inputParams.hostname,
           inputParams.code,
@@ -1022,7 +1063,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplacePCloud(
@@ -1054,8 +1094,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_YANDEXDISK,
+      YANDEXDISK_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1070,7 +1112,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqYandexDisk(
           inputParams.code,
           async (e: any) => {
@@ -1079,7 +1120,6 @@ export default class RemotelySavePlugin extends Plugin {
             throw e;
           }
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplaceYandexDisk(
@@ -1110,8 +1150,10 @@ export default class RemotelySavePlugin extends Plugin {
       }
     );
 
-    this.registerObsidianProtocolHandler(
+    this.registerOAuthCallback(
       COMMAND_CALLBACK_KOOFR,
+      KOOFR_CLIENT_ID,
+      false,
       async (inputParams) => {
         if (this.oauth2Info.helperModal !== undefined) {
           const k = this.oauth2Info.helperModal.contentEl;
@@ -1126,7 +1168,6 @@ export default class RemotelySavePlugin extends Plugin {
             });
         }
 
-        console.debug(inputParams);
         const authRes = await sendAuthReqKoofr(
           this.settings.koofr.api,
           inputParams.code,
@@ -1137,7 +1178,6 @@ export default class RemotelySavePlugin extends Plugin {
           },
           true
         );
-        console.debug(authRes);
 
         const self = this;
         await setConfigBySuccessfullAuthInplaceKoofr(
@@ -1341,6 +1381,7 @@ export default class RemotelySavePlugin extends Plugin {
       cloneDeep(DEFAULT_SETTINGS),
       messyConfigToNormal(await this.loadData())
     );
+    fillSecretsFromBackend(this.settings, getSecretBackend(this.app));
 
     if (this.settings.syncBookmarks === undefined) {
       this.settings.syncBookmarks = false;
@@ -1511,11 +1552,297 @@ export default class RemotelySavePlugin extends Plugin {
   }
 
   async saveSettings() {
+    const onDisk = splitSecretsForDisk(
+      this.settings,
+      getSecretBackend(this.app)
+    );
     if (this.settings.obfuscateSettingFile) {
-      await this.saveData(normalConfigToMessy(this.settings));
+      await this.saveData(normalConfigToMessy(onDisk));
     } else {
-      await this.saveData(this.settings);
+      await this.saveData(onDisk);
     }
+  }
+
+  /**
+   * OAuth callbacks are reachable by any obsidian:// link. They are only
+   * registered when the service has a client ID in this build, and only act
+   * while a login started from the settings is in progress.
+   * @param pkce the login flow stores a code verifier (otherwise it opens a
+   * helper modal)
+   */
+  registerOAuthCallback(
+    command: string,
+    clientID: string | undefined,
+    pkce: boolean,
+    handler: (inputParams: ObsidianProtocolData) => Promise<void>
+  ) {
+    if ((clientID ?? "") === "") {
+      return;
+    }
+    this.registerObsidianProtocolHandler(command, async (inputParams) => {
+      const pending = pkce
+        ? (this.oauth2Info?.verifier ?? "") !== ""
+        : this.oauth2Info?.helperModal !== undefined;
+      if (!pending) {
+        new Notice(this.i18n.t("protocol_oauth_not_pending"));
+        return;
+      }
+      await handler(inputParams);
+    });
+  }
+
+  /**
+   * Finds the rclone salt for this sync, following
+   * _remotely-save-encryption.json in the remote (see encryptionParams.ts).
+   */
+  async resolveEncryptionSalt(fsRemote: FakeFs): Promise<string> {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.i18n.t(x, vars);
+    };
+    if (this.settings.encryptionMigration !== undefined) {
+      throw Error(t("syncrun_reencrypt_unfinished"));
+    }
+    const password = this.settings.password ?? "";
+    const method = this.settings.encryptionMethod ?? "rclone-base64";
+    const remoteParams = await readRemoteEncryptionParams(fsRemote);
+    let remoteIsEmpty = false;
+    if (
+      remoteParams === undefined &&
+      password !== "" &&
+      method === "rclone-base64"
+    ) {
+      remoteIsEmpty = (await fsRemote.walkPartial()).length === 0;
+    }
+    const decision = decideEncryptionSalt({
+      password,
+      method,
+      localSalt: this.settings.encryptionSalt ?? "",
+      remoteParams,
+      remoteIsEmpty,
+      newSalt: newEncryptionSalt,
+    });
+    switch (decision.action) {
+      case "use":
+        return decision.salt;
+      case "adopt":
+        this.settings.encryptionSalt = decision.salt;
+        this.settings.encryptionMethod = decision.method;
+        await this.saveSettings();
+        new Notice(t("syncrun_encryption_adopted"));
+        return decision.salt;
+      case "create":
+        await writeRemoteEncryptionParams(fsRemote, {
+          version: 1,
+          method: "rclone-base64",
+          salt: decision.salt,
+        });
+        if (this.settings.encryptionSalt !== decision.salt) {
+          this.settings.encryptionSalt = decision.salt;
+          await this.saveSettings();
+        }
+        return decision.salt;
+      case "error":
+        throw Error(t("syncrun_encryption_nopassword"));
+    }
+  }
+
+  /**
+   * "Re-encrypt remote": converts the remote to rclone with a new per-vault
+   * salt (see reencrypt.ts). Syncs first, blocks other syncs while running,
+   * and can be resumed after an interruption.
+   */
+  async reencryptRemote(
+    onProgress?: (done: number, total: number, key: string) => void
+  ): Promise<RebuildResult> {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.i18n.t(x, vars);
+    };
+    const password = this.settings.password ?? "";
+    if (password === "") {
+      throw Error(t("reencrypt_error_nopassword"));
+    }
+    if (this.isSyncing) {
+      throw Error(t("reencrypt_error_busy"));
+    }
+
+    if (this.settings.encryptionMigration === undefined) {
+      // start from a fully synced state
+      const before = Date.now();
+      await this.syncRun("manual");
+      const lastOk = await getLastSuccessSyncTimeByVault(
+        this.db,
+        this.vaultRandomID
+      );
+      if (lastOk === null || lastOk === undefined || lastOk < before) {
+        throw Error(t("reencrypt_error_syncfailed"));
+      }
+      this.settings.encryptionMigration = {
+        salt: newEncryptionSalt(),
+        fromMethod: this.settings.encryptionMethod ?? "rclone-base64",
+        fromSalt: this.settings.encryptionSalt ?? "",
+      };
+      await this.saveSettings();
+    }
+    const migration = this.settings.encryptionMigration;
+
+    const fsRemote = getClient(
+      this.settings,
+      this.app.vault.getName(),
+      async () => await this.saveSettings()
+    );
+    const fsLocal = new FakeFsLocal(
+      this.app.vault,
+      this.settings.syncConfigDir ?? false,
+      this.settings.syncBookmarks ?? false,
+      this.app.vault.configDir,
+      this.manifest.id,
+      undefined,
+      this.settings.deleteToWhere ?? "system"
+    );
+    const oldEnc = new FakeFsEncrypt(
+      fsRemote,
+      password,
+      migration.fromMethod,
+      migration.fromSalt
+    );
+    const newEnc = new FakeFsEncrypt(
+      fsRemote,
+      password,
+      "rclone-base64",
+      migration.salt
+    );
+    newEnc.useEmptyCacheMap();
+    const codec = (enc: FakeFsEncrypt) => ({
+      decryptName: (raw: string) => enc._decryptName(raw),
+      decryptContent: (c: ArrayBuffer) => enc._decryptContent(c),
+    });
+
+    this.isSyncing = true;
+    try {
+      const result = await rebuildRemoteEncryption(
+        {
+          listRaw: () => fsRemote.walk(),
+          readRaw: (raw) => fsRemote.readFile(raw),
+          deleteRaw: (raw) => fsRemote.rm(raw),
+          readLocal: async (key) => {
+            if (key.endsWith("/")) {
+              return undefined;
+            }
+            try {
+              const st = await fsLocal.stat(key);
+              const mtime = st.mtimeCli ?? Date.now();
+              return {
+                content: await fsLocal.readFile(key),
+                mtime,
+                ctime: st.ctimeCli ?? mtime,
+              };
+            } catch {
+              return undefined;
+            }
+          },
+          writeNew: async (key, content, mtime, ctime) => {
+            await newEnc.writeFile(key, content, mtime, ctime);
+          },
+          mkdirNew: async (key, mtime) => {
+            await newEnc.mkdir(key, mtime);
+          },
+          publishParams: () =>
+            writeRemoteEncryptionParams(fsRemote, {
+              version: 1,
+              method: "rclone-base64",
+              salt: migration.salt,
+            }),
+          onProgress,
+        },
+        codec(oldEnc),
+        codec(newEnc),
+        new Set([
+          getOwnPluginDataFilePath(this.app.vault.configDir, this.manifest.id),
+        ])
+      );
+
+      this.settings.encryptionMethod = "rclone-base64";
+      this.settings.encryptionSalt = migration.salt;
+      this.settings.encryptionMigration = undefined;
+      await this.saveSettings();
+      return result;
+    } finally {
+      this.isSyncing = false;
+      await oldEnc.closeResources();
+      await newEnc.closeResources();
+    }
+  }
+
+  /**
+   * Import links can be crafted by anyone, so validate them
+   * and let the user review every change before saving.
+   */
+  importSettingsWithConfirmation(inputParams: any) {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.i18n.t(x, vars);
+    };
+
+    if (inputParams?.enc !== undefined) {
+      if (inputParams.enc !== EXPORT_ENCRYPTION_VERSION) {
+        new Notice(
+          t("protocol_import_invalid", {
+            reason: `unsupported export encryption ${inputParams.enc}`,
+          })
+        );
+        return;
+      }
+      new ImportPassphraseModal(this.app, this, async (passphrase) => {
+        let data: string;
+        try {
+          data = await decryptExportPayload(`${inputParams.data}`, passphrase);
+        } catch (e) {
+          new Notice(t("protocol_import_invalid", { reason: `${e}` }));
+          return;
+        }
+        const { enc, ...rest } = inputParams;
+        this.importSettingsWithConfirmation({ ...rest, data });
+      }).open();
+      return;
+    }
+
+    const parsed = importQrCodeUri(inputParams, this.app.vault.getName());
+    if (parsed.status === "error") {
+      new Notice(t("protocol_import_invalid", { reason: parsed.message }));
+      return;
+    }
+
+    const sanitized = sanitizeImportedSettings(
+      parsed.result,
+      DEFAULT_SETTINGS,
+      this.settings
+    );
+    if (sanitized.status === "error") {
+      new Notice(t("protocol_import_invalid", { reason: sanitized.message }));
+      return;
+    }
+    if (sanitized.changes.length === 0) {
+      new Notice(t("protocol_import_nochange"));
+      return;
+    }
+
+    new ImportSettingsConfirmModal(
+      this.app,
+      this,
+      sanitized.changes,
+      sanitized.ignoredKeys,
+      async () => {
+        this.settings = applyImportedSettings(
+          this.settings,
+          sanitized.settings
+        );
+        await this.saveSettings();
+        new Notice(
+          t("protocol_saveqr", {
+            manifestName: this.manifest.name,
+          })
+        );
+      }
+    ).open();
   }
 
   /**

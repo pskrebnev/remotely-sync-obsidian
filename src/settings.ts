@@ -20,7 +20,6 @@ import type {
   WebdavAuthType,
 } from "./baseTypes";
 
-import cloneDeep from "lodash/cloneDeep";
 import { generateAzureBlobStorageSettingsPart } from "../pro/src/settingsAzureBlobStorage";
 import { generateBoxSettingsPart } from "../pro/src/settingsBox";
 import { generateClearDupFilesSettingsPart } from "../pro/src/settingsClearDupFiles";
@@ -36,6 +35,7 @@ import {
   exportVaultProfilerResultsToFiles,
   exportVaultSyncPlansToFiles,
 } from "./debugMode";
+import { MIN_EXPORT_PASSPHRASE_LENGTH } from "./exportCrypto";
 import {
   DEFAULT_DROPBOX_CONFIG,
   getAuthUrlAndVerifier as getAuthUrlAndVerifierDropbox,
@@ -49,11 +49,7 @@ import {
 } from "./fsOnedrive";
 import { simpleTransRemotePrefix } from "./fsS3";
 import type { TransItemType } from "./i18n";
-import {
-  exportQrCodeUri,
-  importQrCodeUri,
-  parseUriByHand,
-} from "./importExport";
+import { exportQrCodeUri, parseUriByHand } from "./importExport";
 import {
   clearAllPrevSyncRecordByVault,
   clearAllSyncPlanRecords,
@@ -65,6 +61,8 @@ import type RemotelySavePlugin from "./main"; // unavoidable
 import {
   changeMobileStatusBar,
   checkHasSpecialCharForDir,
+  isInsecureRemoteUrl,
+  redactSecrets,
   stringToFragment,
 } from "./misc";
 import { DEFAULT_PROFILER_CONFIG } from "./profiler";
@@ -706,6 +704,13 @@ class SyncConfigDirModal extends Modal {
         });
       });
 
+    contentEl.createEl("p", { text: t("modal_syncconfig_security") });
+    if ((this.plugin.settings.password ?? "") === "") {
+      contentEl.createEl("p").createEl("strong", {
+        text: t("modal_syncconfig_noencryption"),
+      });
+    }
+
     new Setting(contentEl)
       .addButton((button) => {
         button.setButtonText(t("modal_syncconfig_secondconfirm"));
@@ -715,6 +720,81 @@ class SyncConfigDirModal extends Modal {
           this.saveDropdownFunc();
           new Notice(t("modal_syncconfig_notice"));
           this.close();
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText(t("goback"));
+        button.onClick(() => {
+          this.close();
+        });
+      });
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
+
+class ReencryptModal extends Modal {
+  readonly plugin: RemotelySavePlugin;
+  readonly onFinish: () => void;
+  running: boolean;
+  constructor(app: App, plugin: RemotelySavePlugin, onFinish: () => void) {
+    super(app);
+    this.plugin = plugin;
+    this.onFinish = onFinish;
+    this.running = false;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    const t = (x: TransItemType, vars?: any) => {
+      return this.plugin.i18n.t(x, vars);
+    };
+
+    contentEl.createEl("h2", { text: t("modal_reencrypt_title") });
+    t("modal_reencrypt_desc")
+      .split("\n")
+      .forEach((val) => {
+        contentEl.createEl("p", { text: val });
+      });
+    const status = contentEl.createEl("p");
+
+    new Setting(contentEl)
+      .addButton((button) => {
+        button.setButtonText(t("modal_reencrypt_confirm"));
+        button.setWarning();
+        button.onClick(async () => {
+          if (this.running) {
+            return;
+          }
+          this.running = true;
+          button.setDisabled(true);
+          try {
+            const res = await this.plugin.reencryptRemote(
+              (done, total, key) => {
+                status.setText(t("reencrypt_progress", { done, total, key }));
+              }
+            );
+            const msg = t("reencrypt_done", {
+              migrated: `${res.migratedCount}`,
+              fromLocal: `${res.fromLocal}`,
+              fromRemote: `${res.fromRemote}`,
+              deleted: `${res.deletedCount}`,
+            });
+            status.setText(msg);
+            new Notice(msg, 10 * 1000);
+          } catch (e) {
+            console.error(e);
+            const msg = t("reencrypt_failed", { error: `${e}` });
+            status.setText(msg);
+            new Notice(msg, 10 * 1000);
+          } finally {
+            this.running = false;
+            button.setDisabled(false);
+            this.onFinish();
+          }
         });
       })
       .addButton((button) => {
@@ -747,14 +827,50 @@ class ExportSettingsQrCodeModal extends Modal {
       return this.plugin.i18n.t(x, vars);
     };
 
-    const { rawUri, imgUri } = await exportQrCodeUri(
-      this.plugin.settings,
-      this.app.vault.getName(),
-      this.plugin.manifest.version,
-      this.exportType
-    );
+    contentEl.createEl("p", { text: t("modal_qr_passphrase_desc") });
 
-    const div1 = contentEl.createDiv();
+    let passphrase = "";
+    const output = contentEl.createDiv();
+    new Setting(contentEl)
+      .setName(t("modal_qr_passphrase"))
+      .addText((text) => {
+        wrapTextWithPasswordHide(text);
+        text.onChange((val) => {
+          passphrase = val;
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText(t("modal_qr_generate"));
+        button.onClick(async () => {
+          if (passphrase.length < MIN_EXPORT_PASSPHRASE_LENGTH) {
+            new Notice(
+              t("modal_qr_passphrase_tooshort", {
+                min: `${MIN_EXPORT_PASSPHRASE_LENGTH}`,
+              })
+            );
+            return;
+          }
+          output.empty();
+          const { rawUri, imgUri } = await exportQrCodeUri(
+            this.plugin.settings,
+            this.app.vault.getName(),
+            this.plugin.manifest.version,
+            this.exportType,
+            passphrase
+          );
+          this.renderQr(output, rawUri, imgUri);
+        });
+      });
+    // keep the generated code below the passphrase field
+    contentEl.appendChild(output);
+  }
+
+  renderQr(container: HTMLElement, rawUri: string, imgUri: string) {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.plugin.i18n.t(x, vars);
+    };
+
+    const div1 = container.createDiv();
     t("modal_qr_shortdesc")
       .split("\n")
       .forEach((val) => {
@@ -763,7 +879,7 @@ class ExportSettingsQrCodeModal extends Modal {
         });
       });
 
-    const div2 = contentEl.createDiv();
+    const div2 = container.createDiv();
     div2.createEl(
       "button",
       {
@@ -777,7 +893,7 @@ class ExportSettingsQrCodeModal extends Modal {
       }
     );
 
-    const div3 = contentEl.createDiv();
+    const div3 = container.createDiv();
     div3.createEl(
       "img",
       {
@@ -898,15 +1014,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       });
     }
 
-    new Setting(s3Div)
+    const s3EndpointDesc = (endpoint: string) =>
+      isInsecureRemoteUrl(endpoint)
+        ? t("settings_s3_insecure_endpoint")
+        : t("settings_s3_endpoint");
+    const s3EndpointSetting = new Setting(s3Div)
       .setName(t("settings_s3_endpoint"))
-      .setDesc(t("settings_s3_endpoint"))
+      .setDesc(s3EndpointDesc(this.plugin.settings.s3.s3Endpoint))
       .addText((text) =>
         text
           .setPlaceholder("")
           .setValue(this.plugin.settings.s3.s3Endpoint)
           .onChange(async (value) => {
             this.plugin.settings.s3.s3Endpoint = value.trim();
+            s3EndpointSetting.setDesc(s3EndpointDesc(value.trim()));
             await this.plugin.saveSettings();
           })
       );
@@ -1522,15 +1643,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       }),
     });
 
-    new Setting(webdavDiv)
+    const webdavAddrDesc = (address: string) =>
+      isInsecureRemoteUrl(address)
+        ? t("settings_insecure_address")
+        : t("settings_webdav_addr_desc");
+    const webdavAddrSetting = new Setting(webdavDiv)
       .setName(t("settings_webdav_addr"))
-      .setDesc(t("settings_webdav_addr_desc"))
+      .setDesc(webdavAddrDesc(this.plugin.settings.webdav.address))
       .addText((text) =>
         text
           .setPlaceholder("")
           .setValue(this.plugin.settings.webdav.address)
           .onChange(async (value) => {
             this.plugin.settings.webdav.address = value.trim();
+            webdavAddrSetting.setDesc(webdavAddrDesc(value.trim()));
             // deprecate auto on 20240116, force to manual_1
             if (
               this.plugin.settings.webdav.depth === "auto" ||
@@ -1746,15 +1872,20 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
       }),
     });
 
-    new Setting(webdisDiv)
+    const webdisAddrDesc = (address: string) =>
+      isInsecureRemoteUrl(address)
+        ? t("settings_insecure_address")
+        : t("settings_webdis_addr_desc");
+    const webdisAddrSetting = new Setting(webdisDiv)
       .setName(t("settings_webdis_addr"))
-      .setDesc(t("settings_webdis_addr_desc"))
+      .setDesc(webdisAddrDesc(this.plugin.settings.webdis.address))
       .addText((text) =>
         text
           .setPlaceholder("https://")
           .setValue(this.plugin.settings.webdis.address)
           .onChange(async (value) => {
             this.plugin.settings.webdis.address = value.trim();
+            webdisAddrSetting.setDesc(webdisAddrDesc(value.trim()));
             // normally saved
             await this.plugin.saveSettings();
           })
@@ -2084,6 +2215,33 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
             }
           });
       });
+
+    const reencryptDesc = () => {
+      if (this.plugin.settings.encryptionMigration !== undefined) {
+        return t("settings_reencrypt_desc_resume");
+      }
+      if (
+        this.plugin.settings.encryptionMethod === "rclone-base64" &&
+        (this.plugin.settings.encryptionSalt ?? "") !== ""
+      ) {
+        return t("settings_reencrypt_desc_current");
+      }
+      return t("settings_reencrypt_desc_legacy");
+    };
+    const reencryptSetting = new Setting(basicDiv)
+      .setName(t("settings_reencrypt"))
+      .setDesc(reencryptDesc())
+      .addButton(async (button) => {
+        button.setButtonText(t("settings_reencrypt_button"));
+        button.onClick(async () => {
+          new ReencryptModal(this.app, this.plugin, () => {
+            reencryptSetting.setDesc(reencryptDesc());
+          }).open();
+        });
+      });
+    if (this.plugin.settings.password === "") {
+      reencryptSetting.settingEl.addClass("settings-encryption-method-hide");
+    }
 
     new Setting(basicDiv)
       .setName(t("settings_autorun"))
@@ -2707,27 +2865,7 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
             // console.debug(importSettingVal);
             try {
               const inputParams = parseUriByHand(importSettingVal);
-              const parsed = importQrCodeUri(
-                inputParams,
-                this.app.vault.getName()
-              );
-              if (parsed.status === "error") {
-                new Notice(parsed.message);
-              } else {
-                const copied = cloneDeep(parsed.result);
-                // new Notice(JSON.stringify(copied))
-                this.plugin.settings = Object.assign(
-                  {},
-                  this.plugin.settings,
-                  copied
-                );
-                this.plugin.saveSettings();
-                new Notice(
-                  t("protocol_saveqr", {
-                    manifestName: this.plugin.manifest.name,
-                  })
-                );
-              }
+              this.plugin.importSettingsWithConfirmation(inputParams);
             } catch (e) {
               new Notice(`${e}`);
             }
@@ -2796,7 +2934,7 @@ export class RemotelySaveSettingTab extends PluginSettingTab {
         button.setButtonText(t("settings_outputsettingsconsole_button"));
         button.onClick(async () => {
           const c = messyConfigToNormal(await this.plugin.loadData());
-          console.info(c);
+          console.info(redactSecrets(c));
           new Notice(t("settings_outputsettingsconsole_notice"));
         });
       });

@@ -4,7 +4,11 @@ import type { Entity } from "./baseTypes";
 import { Queue } from "@fyears/tsqueue";
 import chunk from "lodash/chunk";
 import flatten from "lodash/flatten";
-import { isSpecialFolderNameToSkip, statFix } from "./misc";
+import {
+  getOwnPluginDataFilePath,
+  isSpecialFolderNameToSkip,
+  statFix,
+} from "./misc";
 
 const isPluginDirItself = (x: string, pluginId: string) => {
   return (
@@ -112,6 +116,10 @@ export const listFilesInObsFolder = async (
             }
             if (isInsideSelfPlugin && !isLikelyPluginSubFiles(iter2)) {
               // special treatment for remotely-save folder
+              continue;
+            }
+            if (iter2 === getOwnPluginDataFilePath(configDir, pluginId)) {
+              // our own settings hold every credential: never sync them
               continue;
             }
             q.push(iter2);

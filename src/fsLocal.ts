@@ -2,7 +2,13 @@ import { DEFAULT_DEBUG_FOLDER, type Entity } from "./baseTypes";
 import { FakeFs } from "./fsAll";
 
 import { TFile, TFolder, type Vault } from "obsidian";
-import { mkdirpInVault, statFix, unixTimeToStr } from "./misc";
+import {
+  assertSafeVaultPath,
+  getOwnPluginDataFilePath,
+  mkdirpInVault,
+  statFix,
+  unixTimeToStr,
+} from "./misc";
 import { listFilesInObsFolder } from "./obsFolderLister";
 import type { Profiler } from "./profiler";
 
@@ -120,11 +126,21 @@ export class FakeFsLocal extends FakeFs {
     return local;
   }
 
+  /**
+   * Sync must never overwrite, move or delete our own settings file.
+   */
+  _assertNotOwnDataFile(key: string) {
+    if (key === getOwnPluginDataFilePath(this.configDir, this.pluginID)) {
+      throw Error(`refusing to modify plugin settings file by sync: ${key}`);
+    }
+  }
+
   async walkPartial(): Promise<Entity[]> {
     return await this.walk();
   }
 
   async stat(key: string): Promise<Entity> {
+    assertSafeVaultPath(key);
     const statRes = await statFix(this.vault, key);
     if (statRes === undefined || statRes === null) {
       throw Error(`${key} does not exist! cannot stat for local`);
@@ -146,6 +162,7 @@ export class FakeFsLocal extends FakeFs {
 
   async mkdir(key: string, mtime?: number, ctime?: number): Promise<Entity> {
     // console.debug(`mkdir: ${key}`);
+    assertSafeVaultPath(key);
     await mkdirpInVault(key, this.vault);
     return await this.stat(key);
   }
@@ -156,6 +173,8 @@ export class FakeFsLocal extends FakeFs {
     mtime: number,
     ctime: number
   ): Promise<Entity> {
+    assertSafeVaultPath(key);
+    this._assertNotOwnDataFile(key);
     await this.vault.adapter.writeBinary(key, content, {
       mtime: mtime,
       ctime: ctime,
@@ -164,14 +183,21 @@ export class FakeFsLocal extends FakeFs {
   }
 
   async readFile(key: string): Promise<ArrayBuffer> {
+    assertSafeVaultPath(key);
     return await this.vault.adapter.readBinary(key);
   }
 
   async rename(key1: string, key2: string): Promise<void> {
+    assertSafeVaultPath(key1);
+    assertSafeVaultPath(key2);
+    this._assertNotOwnDataFile(key1);
+    this._assertNotOwnDataFile(key2);
     return await this.vault.adapter.rename(key1, key2);
   }
 
   async rm(key: string): Promise<void> {
+    assertSafeVaultPath(key);
+    this._assertNotOwnDataFile(key);
     if (this.deleteToWhere === "obsidian") {
       await this.vault.adapter.trashLocal(key);
     } else {

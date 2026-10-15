@@ -522,10 +522,51 @@ export const compareVersion = (x: string | null, y: string | null) => {
  * @param string
  * @returns
  */
-export const stringToFragment = (string: string) => {
-  const wrapper = document.createElement("template");
+export const stringToFragment = (string: string, doc: Document = document) => {
+  // template content is inert: nothing runs or loads while it is parsed
+  const wrapper = doc.createElement("template");
   wrapper.innerHTML = string;
+  sanitizeFragmentInplace(wrapper.content);
   return wrapper.content;
+};
+
+// what the translation strings use; anything else is reduced to its text
+const ALLOWED_FRAGMENT_TAGS = new Set([
+  "A",
+  "B",
+  "BR",
+  "CODE",
+  "EM",
+  "I",
+  "LI",
+  "OL",
+  "P",
+  "STRONG",
+  "UL",
+]);
+
+const sanitizeFragmentInplace = (node: ParentNode) => {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === 1 /* element */) {
+      const el = child as Element;
+      sanitizeFragmentInplace(el);
+      if (!ALLOWED_FRAGMENT_TAGS.has(el.tagName.toUpperCase())) {
+        el.replaceWith(...Array.from(el.childNodes));
+        continue;
+      }
+      for (const attr of Array.from(el.attributes)) {
+        const isSafeLink =
+          el.tagName.toUpperCase() === "A" &&
+          attr.name === "href" &&
+          /^(https:\/\/|#)/i.test(attr.value.trim());
+        if (!isSafeLink) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    } else if (child.nodeType !== 3 /* text */) {
+      child.parentNode?.removeChild(child);
+    }
+  }
 };
 
 /**
@@ -851,4 +892,117 @@ export const checkValidName = (x: string) => {
     reason: "ok",
     result: true,
   };
+};
+
+/**
+ * Throws if a vault-relative path could escape the vault:
+ * absolute paths, drive letters, `..` segments (with `/` or `\` separators),
+ * or NUL / control characters.
+ * Remote listings are untrusted, so every local write / rename / delete
+ * should go through this check.
+ */
+export const assertSafeVaultPath = (key: string) => {
+  if (typeof key !== "string" || key === "") {
+    throw Error(`unsafe vault path: empty`);
+  }
+  if (/[\u0000-\u001f\u007f]/.test(key)) {
+    throw Error(`unsafe vault path (control char): ${JSON.stringify(key)}`);
+  }
+  if (key.startsWith("/") || key.startsWith("\\")) {
+    throw Error(`unsafe vault path (absolute): ${key}`);
+  }
+  if (/^[a-zA-Z]:/.test(key)) {
+    throw Error(`unsafe vault path (drive letter): ${key}`);
+  }
+  for (const segment of key.split(/[\\/]/)) {
+    if (segment === "..") {
+      throw Error(`unsafe vault path (parent dir): ${key}`);
+    }
+  }
+};
+
+const isLocalOrPrivateHostname = (hostname: string) => {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) {
+    return true;
+  }
+  if (h === "::1" || /^f[cd][0-9a-f]{2}:/.test(h)) {
+    // IPv6 loopback and unique local addresses
+    return true;
+  }
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m === null) {
+    return false;
+  }
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return (
+    a === 127 ||
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  );
+};
+
+/**
+ * Plain http is only acceptable for loopback / private network hosts,
+ * e.g. a local MinIO. Everything else would send credentials in clear text.
+ */
+export const isInsecureRemoteUrl = (url: string) => {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return (
+    parsed.protocol === "http:" && !isLocalOrPrivateHostname(parsed.hostname)
+  );
+};
+
+const SECRET_KEY_REGEX =
+  /token|secret|password|passphrase|verifier|credential|apikey|accesskeyid|^code$/i;
+
+/**
+ * Deep copy with secret-looking fields masked, for logs and debug output.
+ */
+export const redactSecrets = (x: any, seen = new WeakSet<object>()): any => {
+  if (x === null || typeof x !== "object") {
+    return x;
+  }
+  if (seen.has(x)) {
+    return "[circular]";
+  }
+  seen.add(x);
+  if (Array.isArray(x)) {
+    return x.map((v) => redactSecrets(v, seen));
+  }
+  const res: Record<string, any> = {};
+  for (const [k, v] of Object.entries(x)) {
+    if (SECRET_KEY_REGEX.test(k) && typeof v === "string" && v !== "") {
+      res[k] = "<redacted>";
+    } else {
+      res[k] = redactSecrets(v, seen);
+    }
+  }
+  return res;
+};
+
+/**
+ * Path of this plugin's own settings file inside the vault.
+ * It holds every credential, so it must never be synced in either direction.
+ */
+export const getOwnPluginDataFilePath = (configDir: string, pluginId: string) =>
+  `${configDir}/plugins/${pluginId}/data.json`;
+
+/**
+ * Leaves out entities whose (decrypted) key is in `hiddenKeys`.
+ */
+export const filterOutKeys = <T extends { key?: string }>(
+  entities: T[],
+  hiddenKeys: Set<string>
+): T[] => {
+  if (hiddenKeys.size === 0) {
+    return entities;
+  }
+  return entities.filter((e) => e.key === undefined || !hiddenKeys.has(e.key));
 };

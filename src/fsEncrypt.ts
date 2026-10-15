@@ -1,7 +1,8 @@
 import type { CipherMethodType, Entity } from "./baseTypes";
 import * as openssl from "./encryptOpenSSL";
 import * as rclone from "./encryptRClone";
-import { isSpecialFolderNameToSkip, isVaildText } from "./misc";
+import { ENCRYPTION_PARAMS_FILE } from "./encryptionParams";
+import { filterOutKeys, isSpecialFolderNameToSkip, isVaildText } from "./misc";
 
 import cloneDeep from "lodash/cloneDeep";
 import { FakeFs } from "./fsAll";
@@ -78,14 +79,24 @@ export class FakeFsEncrypt extends FakeFs {
   cacheMapOrigToEnc: Record<string, string>;
   hasCacheMap: boolean;
   kind: string;
+  hiddenKeys: Set<string>;
 
-  constructor(innerFs: FakeFs, password: string, method: CipherMethodType) {
+  readonly salt: string;
+
+  constructor(
+    innerFs: FakeFs,
+    password: string,
+    method: CipherMethodType,
+    salt = ""
+  ) {
     super();
     this.innerFs = innerFs;
     this.password = password ?? "";
     this.method = method;
+    this.salt = salt ?? "";
     this.cacheMapOrigToEnc = {};
     this.hasCacheMap = false;
+    this.hiddenKeys = new Set();
 
     this.kind = `encrypt(${this.innerFs.kind},${
       this.password !== "" ? method : "no password"
@@ -93,7 +104,7 @@ export class FakeFsEncrypt extends FakeFs {
 
     if (this.password !== "" && method === "rclone-base64") {
       // no need to init if no password or not rclone
-      this.cipherRClone = new rclone.CipherRclone(password, 5);
+      this.cipherRClone = new rclone.CipherRclone(password, 5, this.salt);
     }
   }
 
@@ -170,14 +181,38 @@ export class FakeFsEncrypt extends FakeFs {
     }
   }
 
+  /**
+   * Remote entries with these (decrypted) keys are left out of every walk,
+   * so they are never downloaded over local files.
+   */
+  hideKeys(keys: string[]) {
+    for (const k of keys) {
+      this.hiddenKeys.add(k);
+    }
+  }
+
+  /**
+   * Allows writes without a walk first: names are encrypted on demand.
+   * Used when re-encrypting, where the remote holds names this cipher
+   * cannot decrypt yet.
+   */
+  useEmptyCacheMap() {
+    this.cacheMapOrigToEnc = {};
+    this.hasCacheMap = true;
+  }
+
   async walk(): Promise<Entity[]> {
     const innerWalkResult = await this.innerFs.walk();
-    return await this._dealWithWalk(innerWalkResult);
+    return this._filterHidden(await this._dealWithWalk(innerWalkResult));
   }
 
   async walkPartial(): Promise<Entity[]> {
     const innerWalkResult = await this.innerFs.walkPartial();
-    return await this._dealWithWalk(innerWalkResult);
+    return this._filterHidden(await this._dealWithWalk(innerWalkResult));
+  }
+
+  _filterHidden(entities: Entity[]): Entity[] {
+    return filterOutKeys(entities, this.hiddenKeys);
   }
 
   async _dealWithWalk(innerWalkResult: Entity[]): Promise<Entity[]> {
@@ -185,6 +220,9 @@ export class FakeFsEncrypt extends FakeFs {
 
     if (this.isPasswordEmpty()) {
       for (const innerEntity of innerWalkResult) {
+        if (innerEntity.keyRaw === ENCRYPTION_PARAMS_FILE) {
+          continue;
+        }
         res.push(copyEntityAndCopyKeyEncSizeEnc(innerEntity));
         this.cacheMapOrigToEnc[innerEntity.key!] = innerEntity.key!;
       }
@@ -193,6 +231,10 @@ export class FakeFsEncrypt extends FakeFs {
     } else {
       for (const innerEntity of innerWalkResult) {
         if (isSpecialFolderNameToSkip(innerEntity.keyRaw, [])) {
+          continue;
+        }
+        if (innerEntity.keyRaw === ENCRYPTION_PARAMS_FILE) {
+          // plain, unencrypted file describing the encryption itself
           continue;
         }
 

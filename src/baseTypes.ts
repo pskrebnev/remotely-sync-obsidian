@@ -188,9 +188,32 @@ export interface RemotelySavePluginSettings {
 
   encryptionMethod?: CipherMethodType;
 
+  /**
+   * Per-vault rclone salt ("password2"), published in the remote's
+   * _remotely-save-encryption.json. "" means rclone's built-in salt
+   * (vaults created before per-vault salts).
+   */
+  encryptionSalt?: string;
+
+  /**
+   * Set while "re-encrypt remote" is in progress on this device,
+   * so an interrupted run resumes with the same new salt.
+   */
+  encryptionMigration?: {
+    salt: string;
+    fromMethod: CipherMethodType;
+    fromSalt: string;
+  };
+
   profiler?: ProfilerConfig;
 
   pro?: ProConfig;
+
+  /**
+   * Random id that prefixes this vault's entries in Obsidian's SecretStorage.
+   * Not a secret itself.
+   */
+  secretStorageNamespace?: string;
 
   /**
    * @deprecated
@@ -222,6 +245,8 @@ export interface UriParams {
   func?: string;
   vault?: string;
   ver?: string;
+  // "1": `data` is encrypted with a passphrase (see exportCrypto.ts)
+  enc?: string;
   data?: string;
 }
 
