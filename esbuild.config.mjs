@@ -43,7 +43,7 @@ esbuild
     inject: ["./esbuild.injecthelper.mjs"],
     format: "cjs",
     // watch: !prod, // no longer valid in esbuild 0.17
-    target: "es2016",
+    target: "es2020", // dependencies (AWS SDK, p-queue) use BigInt literals
     logLevel: "info",
     sourcemap: prod ? false : "inline",
     treeShaking: true,
