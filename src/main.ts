@@ -115,7 +115,7 @@ const DEFAULT_SETTINGS: CloudSyncPluginSettings = {
   syncConfigDir: false,
   syncBookmarks: false,
   syncUnderscoreItems: false,
-  lang: "auto",
+  lang: "en",
   logToDB: false,
   skipSizeLargerThan: -1,
   ignorePaths: [],
@@ -943,6 +943,10 @@ export default class CloudSyncPlugin extends Plugin {
       messyConfigToNormal(await this.loadData())
     );
     fillSecretsFromBackend(this.settings, getSecretBackend(this.app));
+    // English by default: "auto" followed Obsidian's locale
+    if (this.settings.lang === undefined || this.settings.lang === "auto") {
+      this.settings.lang = "en";
+    }
     for (const msg of migrateRemovedFeatureSettings(this.settings)) {
       new Notice(`${this.manifest.name}: ${msg}`, 15 * 1000);
     }

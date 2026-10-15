@@ -578,6 +578,8 @@ Branch: `rebrand-cloud-sync`. The plugin is now a personal project under its own
 - **Name and ID:** display name **Cloud Sync**, plugin ID **`cloud-sync`**. It installs into `.obsidian/plugins/cloud-sync/`, and its commands are "Cloud Sync: …".
 - **`manifest.json` / `manifest-beta.json`:** new description, author `pskrebnev`, `authorUrl` pointing to your GitHub profile. The original author and the funding link (`remotelysave.com`) are removed.
 - **`package.json`:** name `cloud-sync`, new description and author.
+- **Version:** `0.8.4` (`manifest.json`, `manifest-beta.json`, `package.json`, `versions.json`).
+- **Language: English by default.** The default used to be "auto", which followed Obsidian's `moment` locale and could show Chinese. A stored "auto" is migrated to "en". The lookup also had a bug: any explicit language fell back to English. Now an explicit language is honoured, and the Chinese translations stay available.
 
 ### Compiled files contain no references to the original project or PRO
 
