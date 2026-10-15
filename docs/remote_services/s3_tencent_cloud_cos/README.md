@@ -16,7 +16,7 @@ The example shows the steps of China version. International version should be si
 3. In CAM page, create api key, and note down the SecretID and SecretKey.
    ![](./cos_create_secret.png)
 4. **Remove the bucket name from your access address to obtain your endpoint address! If your access address on the website is `https://<bucket-name-with-number>.cos.<region>.myqcloud.com`, then the endpoint address you are going to use is `https://cos.<region>.myqcloud.com`.**
-5. In sync-sync-sync settings page, enter your endpoint adress, SecretID, SecretKey,and bucket name.
+5. In sync-it-simply-stupid settings page, enter your endpoint adress, SecretID, SecretKey,and bucket name.
    ![](./cos_setting.png)
 6. Check Connectivity.
    ![](./cos_connection.png)

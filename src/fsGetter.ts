@@ -1,4 +1,4 @@
-import type { SyncSyncSyncPluginSettings } from "./baseTypes";
+import type { SyncItSimplyStupidPluginSettings } from "./baseTypes";
 import type { FakeFs } from "./fsAll";
 import { FakeFsDropbox } from "./fsDropbox";
 import { FakeFsOnedrive } from "./fsOnedrive";
@@ -10,7 +10,7 @@ import { FakeFsWebdis } from "./fsWebdis";
  * To avoid circular dependency, we need a new file here.
  */
 export function getClient(
-  settings: SyncSyncSyncPluginSettings,
+  settings: SyncItSimplyStupidPluginSettings,
   vaultName: string,
   saveUpdatedConfigFunc: () => Promise<any>
 ): FakeFs {

@@ -16,7 +16,7 @@
 3. 在[“访问管理页”](https://console.cloud.tencent.com/cam/capi) ，“API 密钥管理”，“创建密钥”，要记录 SecretID 和 SecretKey。
    ![](./cos_create_secret.png)
 4. **把桶名称从访问域名移除，才是你即将输入的服务地址！假如你在腾讯云网站看到访问域名是 `https://<bucket-name-with-number>.cos.<region>.myqcloud.com`，那么“服务地址”是 `https://cos.<region>.myqcloud.com`.**
-5. 在 sync-sync-sync 设置，输入服务地址，SecretID，SecretKey，和 桶名称。
+5. 在 sync-it-simply-stupid 设置，输入服务地址，SecretID，SecretKey，和 桶名称。
    ![](./cos_setting.png)
 6. 检查连接。
    ![](./cos_connection.png)

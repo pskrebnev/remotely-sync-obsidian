@@ -16,7 +16,7 @@
 2. 注册账号，登录。
 3. 去“个人信息”->“安全”，“添加应用”，从而获取了 webDAV 账号（应该是 email）和 WebDAV 密码（一串特殊的字符，不等于网站密码）。
    ![](./webdav_jianguoyun.cn.png)
-4. 在 sync-sync-sync 设置，输入网址、账号、密码、**“发送到服务器的 Depth Header”设置为“只支持 depth='1'”**。
+4. 在 sync-it-simply-stupid 设置，输入网址、账号、密码、**“发送到服务器的 Depth Header”设置为“只支持 depth='1'”**。
    ![](./webdav_jianguoyun_rs_settting.cn.png)
-5. 在 sync-sync-sync 设置，检查连接。
+5. 在 sync-it-simply-stupid 设置，检查连接。
 6. 同步文件！

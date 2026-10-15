@@ -1,6 +1,6 @@
 import { type App, Modal } from "obsidian";
 import type { TransItemType } from "./i18n";
-import type SyncSyncSyncPlugin from "./main"; // unavoidable
+import type SyncItSimplyStupidPlugin from "./main"; // unavoidable
 
 import { stringToFragment } from "./misc";
 
@@ -8,8 +8,8 @@ export class SyncAlgoV3Modal extends Modal {
   agree: boolean;
   manualBackup: boolean;
   requireUpdateAllDev: boolean;
-  readonly plugin: SyncSyncSyncPlugin;
-  constructor(app: App, plugin: SyncSyncSyncPlugin) {
+  readonly plugin: SyncItSimplyStupidPlugin;
+  constructor(app: App, plugin: SyncItSimplyStupidPlugin) {
     super(app);
     this.plugin = plugin;
     this.agree = false;

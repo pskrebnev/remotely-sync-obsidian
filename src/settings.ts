@@ -48,7 +48,7 @@ import {
   upsertLastFailedSyncTimeByVault,
   upsertLastSuccessSyncTimeByVault,
 } from "./localdb";
-import type SyncSyncSyncPlugin from "./main"; // unavoidable
+import type SyncItSimplyStupidPlugin from "./main"; // unavoidable
 import {
   changeMobileStatusBar,
   checkHasSpecialCharForDir,
@@ -59,12 +59,12 @@ import {
 import { DEFAULT_PROFILER_CONFIG } from "./profiler";
 
 class PasswordModal extends Modal {
-  plugin: SyncSyncSyncPlugin;
+  plugin: SyncItSimplyStupidPlugin;
   newPassword: string;
   encryptionMethodSetting: Setting;
   constructor(
     app: App,
-    plugin: SyncSyncSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     newPassword: string,
     encryptionMethodSetting: Setting
   ) {
@@ -146,8 +146,8 @@ class PasswordModal extends Modal {
 }
 
 class EncryptionMethodModal extends Modal {
-  plugin: SyncSyncSyncPlugin;
-  constructor(app: App, plugin: SyncSyncSyncPlugin) {
+  plugin: SyncItSimplyStupidPlugin;
+  constructor(app: App, plugin: SyncItSimplyStupidPlugin) {
     super(app);
     this.plugin = plugin;
   }
@@ -185,12 +185,12 @@ class EncryptionMethodModal extends Modal {
 }
 
 export class ChangeRemoteBaseDirModal extends Modal {
-  readonly plugin: SyncSyncSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly newRemoteBaseDir: string;
   readonly service: SUPPORTED_SERVICES_TYPE_WITH_REMOTE_BASE_DIR;
   constructor(
     app: App,
-    plugin: SyncSyncSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     newRemoteBaseDir: string,
     service: SUPPORTED_SERVICES_TYPE_WITH_REMOTE_BASE_DIR
   ) {
@@ -283,9 +283,13 @@ export class ChangeRemoteBaseDirModal extends Modal {
  * thus a new Modal here
  */
 class ChangeS3RemotePrefixModal extends Modal {
-  readonly plugin: SyncSyncSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly newRemotePrefix: string;
-  constructor(app: App, plugin: SyncSyncSyncPlugin, newRemotePrefix: string) {
+  constructor(
+    app: App,
+    plugin: SyncItSimplyStupidPlugin,
+    newRemotePrefix: string
+  ) {
     super(app);
     this.plugin = plugin;
     this.newRemotePrefix = newRemotePrefix;
@@ -361,13 +365,13 @@ class ChangeS3RemotePrefixModal extends Modal {
 }
 
 class DropboxAuthModal extends Modal {
-  readonly plugin: SyncSyncSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly authDiv: HTMLDivElement;
   readonly revokeAuthDiv: HTMLDivElement;
   readonly revokeAuthSetting: Setting;
   constructor(
     app: App,
-    plugin: SyncSyncSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     authDiv: HTMLDivElement,
     revokeAuthDiv: HTMLDivElement,
     revokeAuthSetting: Setting
@@ -524,13 +528,13 @@ class DropboxAuthModal extends Modal {
 }
 
 export class OnedriveAuthModal extends Modal {
-  readonly plugin: SyncSyncSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly authDiv: HTMLDivElement;
   readonly revokeAuthDiv: HTMLDivElement;
   readonly revokeAuthSetting: Setting;
   constructor(
     app: App,
-    plugin: SyncSyncSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     authDiv: HTMLDivElement,
     revokeAuthDiv: HTMLDivElement,
     revokeAuthSetting: Setting
@@ -598,12 +602,12 @@ export class OnedriveAuthModal extends Modal {
 }
 
 export class OnedriveRevokeAuthModal extends Modal {
-  readonly plugin: SyncSyncSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly authDiv: HTMLDivElement;
   readonly revokeAuthDiv: HTMLDivElement;
   constructor(
     app: App,
-    plugin: SyncSyncSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     authDiv: HTMLDivElement,
     revokeAuthDiv: HTMLDivElement
   ) {
@@ -668,11 +672,11 @@ export class OnedriveRevokeAuthModal extends Modal {
 }
 
 class SyncConfigDirModal extends Modal {
-  plugin: SyncSyncSyncPlugin;
+  plugin: SyncItSimplyStupidPlugin;
   saveDropdownFunc: () => void;
   constructor(
     app: App,
-    plugin: SyncSyncSyncPlugin,
+    plugin: SyncItSimplyStupidPlugin,
     saveDropdownFunc: () => void
   ) {
     super(app);
@@ -728,10 +732,14 @@ class SyncConfigDirModal extends Modal {
 }
 
 class ReencryptModal extends Modal {
-  readonly plugin: SyncSyncSyncPlugin;
+  readonly plugin: SyncItSimplyStupidPlugin;
   readonly onFinish: () => void;
   running: boolean;
-  constructor(app: App, plugin: SyncSyncSyncPlugin, onFinish: () => void) {
+  constructor(
+    app: App,
+    plugin: SyncItSimplyStupidPlugin,
+    onFinish: () => void
+  ) {
     super(app);
     this.plugin = plugin;
     this.onFinish = onFinish;
@@ -803,9 +811,13 @@ class ReencryptModal extends Modal {
 }
 
 class ExportSettingsQrCodeModal extends Modal {
-  plugin: SyncSyncSyncPlugin;
+  plugin: SyncItSimplyStupidPlugin;
   exportType: QRExportType;
-  constructor(app: App, plugin: SyncSyncSyncPlugin, exportType: QRExportType) {
+  constructor(
+    app: App,
+    plugin: SyncItSimplyStupidPlugin,
+    exportType: QRExportType
+  ) {
     super(app);
     this.plugin = plugin;
     this.exportType = exportType;
@@ -928,10 +940,10 @@ export const wrapTextWithPasswordHide = (text: TextComponent) => {
   return text;
 };
 
-export class SyncSyncSyncSettingTab extends PluginSettingTab {
-  readonly plugin: SyncSyncSyncPlugin;
+export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
+  readonly plugin: SyncItSimplyStupidPlugin;
 
-  constructor(app: App, plugin: SyncSyncSyncPlugin) {
+  constructor(app: App, plugin: SyncItSimplyStupidPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -946,7 +958,7 @@ export class SyncSyncSyncSettingTab extends PluginSettingTab {
       return this.plugin.i18n.t(x, vars);
     };
 
-    containerEl.createEl("h1", { text: "Sync Sync Sync" });
+    containerEl.createEl("h1", { text: "Sync It Simply Stupid" });
 
     //////////////////////////////////////////////////
     // below for service chooser (part 1/2)
@@ -2590,7 +2602,7 @@ export class SyncSyncSyncSettingTab extends PluginSettingTab {
       .setDesc(t("settings_import_desc"))
       .addText((text) =>
         text
-          .setPlaceholder("obsidian://sync-sync-sync?func=settings&...")
+          .setPlaceholder("obsidian://sync-it-simply-stupid?func=settings&...")
           .setValue("")
           .onChange((val) => {
             importSettingVal = val;

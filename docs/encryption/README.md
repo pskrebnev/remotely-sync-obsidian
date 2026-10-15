@@ -1,6 +1,6 @@
 # Encryption
 
-Currently (March 2024), Sync Sync Sync supports two end to end encryption format:
+Currently (March 2024), Sync It Simply Stupid supports two end to end encryption format:
 
 1. [RClone Crypt](./rclone.md) format, which is the recommend way now.
 2. [OpenSSL enc](./openssl.md) format

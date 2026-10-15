@@ -1,6 +1,6 @@
 {
-  "id": "sync-sync-sync",
-  "name": "Sync Sync Sync",
+  "id": "sync-it-simply-stupid",
+  "name": "Sync It Simply Stupid",
   "version": "0.8.4",
   "minAppVersion": "0.13.21",
   "description": "Sync your vault with your own cloud storage (S3 / Cloudflare R2, WebDAV, Webdis, Dropbox, OneDrive), with end-to-end encryption.",

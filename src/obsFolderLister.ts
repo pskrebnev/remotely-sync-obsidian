@@ -103,7 +103,7 @@ export const listFilesInObsFolder = async (
               continue;
             }
             if (isInsideSelfPlugin && !isLikelyPluginSubFiles(iter2)) {
-              // special treatment for sync-sync-sync folder
+              // special treatment for sync-it-simply-stupid folder
               continue;
             }
             q.push(iter2);
@@ -115,7 +115,7 @@ export const listFilesInObsFolder = async (
               continue;
             }
             if (isInsideSelfPlugin && !isLikelyPluginSubFiles(iter2)) {
-              // special treatment for sync-sync-sync folder
+              // special treatment for sync-it-simply-stupid folder
               continue;
             }
             if (iter2 === getOwnPluginDataFilePath(configDir, pluginId)) {

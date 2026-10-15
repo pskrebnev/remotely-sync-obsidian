@@ -1,6 +1,6 @@
 # Syncing Obsidian with this plugin
 
-A step-by-step guide to syncing an Obsidian vault across devices with Sync Sync Sync. It focuses on **Cloudflare R2** and **AWS S3**; WebDAV, Webdis, Dropbox and OneDrive work in a similar way.
+A step-by-step guide to syncing an Obsidian vault across devices with Sync It Simply Stupid. It focuses on **Cloudflare R2** and **AWS S3**; WebDAV, Webdis, Dropbox and OneDrive work in a similar way.
 
 **Back up your vault before you start.** Sync tools move and delete files; a backup is your safety net.
 
@@ -41,7 +41,7 @@ With **end-to-end encryption**, files and file names are encrypted on your devic
 
 ## 3. Install the plugin
 
-The plugin ID is `sync-sync-sync`, so it is installed in `<vault>/.obsidian/plugins/sync-sync-sync/`. Don't run another sync plugin on the same vault at the same time.
+The plugin ID is `sync-it-simply-stupid`, so it is installed in `<vault>/.obsidian/plugins/sync-it-simply-stupid/`. Don't run another sync plugin on the same vault at the same time.
 
 ### Option A: from a GitHub release (desktop and mobile)
 
@@ -55,7 +55,7 @@ On each device:
 
 1. Install the **[BRAT](https://github.com/TfTHacker/obsidian42-brat)** plugin from Obsidian's community plugins.
 2. In BRAT, choose *Add beta plugin* and enter `pskrebnev/remotely-sync-obsidian`.
-3. Enable **Sync Sync Sync** under *Settings → Community plugins*.
+3. Enable **Sync It Simply Stupid** under *Settings → Community plugins*.
 
 BRAT also keeps the plugin updated when you publish new releases. This is the easiest way to install on phones and tablets.
 
@@ -69,7 +69,7 @@ npm run build
 ```
 
 Then copy `main.js`, `manifest.json` and `styles.css` into
-`<your vault>/.obsidian/plugins/sync-sync-sync/` (create the folder if needed), restart Obsidian, and enable **Sync Sync Sync** under *Settings → Community plugins*. *Restricted mode* must be off.
+`<your vault>/.obsidian/plugins/sync-it-simply-stupid/` (create the folder if needed), restart Obsidian, and enable **Sync It Simply Stupid** under *Settings → Community plugins*. *Restricted mode* must be off.
 
 ## 4. Create the storage
 
@@ -97,7 +97,7 @@ The plugin's *Bypass CORS Issue Locally* setting (on by default) uses Obsidian's
 
 ## 5. Connect the plugin
 
-Open *Settings → Sync Sync Sync*:
+Open *Settings → Sync It Simply Stupid*:
 
 1. **Choose A Remote Service:** `S3 or compatible`.
 2. Fill in:
@@ -123,14 +123,14 @@ Do this **before the first sync**, while the bucket is still empty:
 1. Under **Basic Settings → Encryption Password**, enter a long, unique password and confirm it.
 2. Keep **Encryption Method** at `RClone Crypt (recommended)`, the default.
 
-On the first sync, the plugin generates a random **per-vault salt** and stores it in a small unencrypted file in the bucket, `_sync-sync-sync-encryption.json`. A salt isn't a secret; other devices read it automatically. Your files and file names are encrypted on the device, in the rclone format, so the bucket can even be read with the `rclone` command-line tool (`password` = your password, `password2` = the salt).
+On the first sync, the plugin generates a random **per-vault salt** and stores it in a small unencrypted file in the bucket, `_sync-it-simply-stupid-encryption.json`. A salt isn't a secret; other devices read it automatically. Your files and file names are encrypted on the device, in the rclone format, so the bucket can even be read with the `rclone` command-line tool (`password` = your password, `password2` = the salt).
 
 **If you lose the password, the data in the bucket can't be decrypted.** Store it in a password manager. Your local copies are not affected.
 
 ## 7. First sync
 
-1. Optional but recommended: run the command **"Sync Sync Sync: start sync (dry run only)"** from the command palette. It shows what *would* happen without changing anything.
-2. Click the **sync icon** in the left ribbon, or run **"Sync Sync Sync: start sync"**. The first sync uploads everything, so be patient.
+1. Optional but recommended: run the command **"Sync It Simply Stupid: start sync (dry run only)"** from the command palette. It shows what *would* happen without changing anything.
+2. Click the **sync icon** in the left ribbon, or run **"Sync It Simply Stupid: start sync"**. The first sync uploads everything, so be patient.
 3. Optional: under **Basic Settings**, set up **Schedule For Auto Run** (for example every 5 minutes), **Run Once On Start Up Automatically**, and **Sync On Save**.
 
 ## 8. Add another device
@@ -157,7 +157,7 @@ The plugin's own settings file is **never** synced, even with config-folder sync
 
 ## 10. Upgrade an existing encrypted bucket
 
-Buckets encrypted by an older version (without `_sync-sync-sync-encryption.json`) keep working, but they use rclone's built-in salt, or the weaker openssl method. To upgrade:
+Buckets encrypted by an older version (without `_sync-it-simply-stupid-encryption.json`) keep working, but they use rclone's built-in salt, or the weaker openssl method. To upgrade:
 
 1. Make sure every device is synced and no device is offline with unsynced changes.
 2. On one device, open **Basic Settings → Re-encrypt remote** and click **Re-encrypt**, then **Start re-encryption**.
@@ -171,7 +171,7 @@ The same button **rotates the salt** on an already upgraded bucket.
 | Message or symptom | Cause and fix |
 |---|---|
 | *refusing plain http S3 endpoint …* | The endpoint uses `http://` on a public host. Use `https://`. |
-| *Sync is paused: "Allow list" paths are set …* | An old configuration uses an allow list, which Sync Sync Sync doesn't support. Clear the list (shown in the settings while it has entries) and use *Regex Of Paths To Ignore* instead. |
+| *Sync is paused: "Allow list" paths are set …* | An old configuration uses an allow list, which Sync It Simply Stupid doesn't support. Clear the list (shown in the settings while it has entries) and use *Regex Of Paths To Ignore* instead. |
 | *Sync is paused: the sync direction … is not supported* | An old configuration uses a push/pull direction *with delete*. Choose another direction under *Sync Direction*. |
 | *The remote is encrypted, but no encryption password is set on this device* | Enter the same Encryption Password as on your other devices. |
 | *Re-encrypting the remote is unfinished on this device* | Run *Re-encrypt remote* again to finish it. |

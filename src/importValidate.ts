@@ -1,8 +1,8 @@
-import type { SyncSyncSyncPluginSettings } from "./baseTypes";
+import type { SyncItSimplyStupidPluginSettings } from "./baseTypes";
 import { isInsecureRemoteUrl } from "./misc";
 
 /**
- * Settings can be imported from an `obsidian://sync-sync-sync?...` link,
+ * Settings can be imported from an `obsidian://sync-it-simply-stupid?...` link,
  * which anyone can craft. Only known keys with the expected types are
  * accepted, and every change is listed so the user can confirm it.
  */
@@ -48,7 +48,7 @@ export interface ImportChange {
 export type SanitizeResult =
   | {
       status: "ok";
-      settings: Partial<SyncSyncSyncPluginSettings>;
+      settings: Partial<SyncItSimplyStupidPluginSettings>;
       changes: ImportChange[];
       ignoredKeys: string[];
     }
@@ -151,8 +151,8 @@ const isRisky = (path: string, after: unknown) => {
  */
 export const sanitizeImportedSettings = (
   raw: unknown,
-  defaults: SyncSyncSyncPluginSettings,
-  current: SyncSyncSyncPluginSettings
+  defaults: SyncItSimplyStupidPluginSettings,
+  current: SyncItSimplyStupidPluginSettings
 ): SanitizeResult => {
   const ignoredKeys: string[] = [];
   let settings: Record<string, unknown>;
@@ -199,7 +199,7 @@ export const sanitizeImportedSettings = (
 
   return {
     status: "ok",
-    settings: settings as Partial<SyncSyncSyncPluginSettings>,
+    settings: settings as Partial<SyncItSimplyStupidPluginSettings>,
     changes,
     ignoredKeys,
   };
@@ -210,13 +210,13 @@ export const sanitizeImportedSettings = (
  * so tokens of sections that were not imported stay untouched.
  */
 export const applyImportedSettings = (
-  current: SyncSyncSyncPluginSettings,
-  imported: Partial<SyncSyncSyncPluginSettings>
-): SyncSyncSyncPluginSettings => {
+  current: SyncItSimplyStupidPluginSettings,
+  imported: Partial<SyncItSimplyStupidPluginSettings>
+): SyncItSimplyStupidPluginSettings => {
   const res: Record<string, unknown> = { ...current };
   for (const [k, v] of Object.entries(imported)) {
     const old = res[k];
     res[k] = isPlainObject(old) && isPlainObject(v) ? { ...old, ...v } : v;
   }
-  return res as unknown as SyncSyncSyncPluginSettings;
+  return res as unknown as SyncItSimplyStupidPluginSettings;
 };

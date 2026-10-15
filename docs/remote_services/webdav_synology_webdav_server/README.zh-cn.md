@@ -8,7 +8,7 @@
 
 ## 注意
 
-教程作者（Sync Sync Sync 作者）**不是** NAS、群晖专家。请仔细阅读文档，并自行改动以适应您自身需求。
+教程作者（Sync It Simply Stupid 作者）**不是** NAS、群晖专家。请仔细阅读文档，并自行改动以适应您自身需求。
 
 **没有设置防火墙和其他保护措施的话，将 NAS 暴露到公网上非常危险。**
 
@@ -37,7 +37,7 @@
 
    ![](./synology_webdav_server_settings.png)
 
-6. 在 Sync Sync Sync 设置页，你的地址应如下格式输入：
+6. 在 Sync It Simply Stupid 设置页，你的地址应如下格式输入：
 
    `http(s)://<your synology ip or domain>:<port>/<shared folder>/<sub folders>`
 
@@ -51,6 +51,6 @@
 
    检查连接！
 
-   ![](./synology_sync_sync_sync_settings.png)
+   ![](./synology_sync_it_simply_stupid_settings.png)
 
 7. 同步！

@@ -9,7 +9,7 @@ import type {
   MixedEntity,
   SUPPORTED_SERVICES_TYPE,
   SyncDirectionType,
-  SyncSyncSyncPluginSettings,
+  SyncItSimplyStupidPluginSettings,
   SyncTriggerSourceType,
 } from "./baseTypes";
 import type { FakeFs } from "./fsAll";
@@ -288,7 +288,7 @@ const getSyncPlanInplace = async (
   conflictAction: ConflictActionType,
   syncDirection: SyncDirectionType,
   profiler: Profiler | undefined,
-  settings: SyncSyncSyncPluginSettings,
+  settings: SyncItSimplyStupidPluginSettings,
   triggerSource: SyncTriggerSourceType
 ) => {
   profiler?.addIndent();
@@ -1380,7 +1380,7 @@ export async function syncer(
   profileID: string,
   vaultRandomID: string,
   configDir: string,
-  settings: SyncSyncSyncPluginSettings,
+  settings: SyncItSimplyStupidPluginSettings,
   getProtectModifyPercentageErrorStrFunc: any,
   markIsSyncingFunc: (isSyncing: boolean) => void,
   notifyFunc?: (s: SyncTriggerSourceType, step: number) => Promise<any>,

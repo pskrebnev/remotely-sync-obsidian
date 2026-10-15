@@ -25,7 +25,7 @@
     }
     ```
     The password hash is generated like [this](https://caddyserver.com/docs/caddyfile/directives/basic_auth).
-4. In Sync Sync Sync, setup:
+4. In Sync It Simply Stupid, setup:
     * address `http://localhost:8080/dav/`
     * username `Bob`
     * password `hiccup`
