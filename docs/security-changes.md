@@ -601,7 +601,9 @@ Branch: `rebrand-cloud-sync`. The plugin is now a personal project under its own
 
 ### Attribution
 
-The Apache License 2.0 requires keeping attribution to the original work. That's the only remaining reference: one sentence in `LICENSE` (source only, not part of the compiled plugin). The npm dependency names `@fyears/rclone-crypt` and `@fyears/tsqueue` are real package names and stay as they are; they don't appear in `main.js`.
+The original project is credited exactly once in the documentation: the **Credits** section at the top of `README.md`, with a link to its repository. `LICENSE` keeps the attribution sentence that the Apache License 2.0 requires. Neither is part of the compiled plugin. The npm dependency names `@fyears/rclone-crypt` and `@fyears/tsqueue` are real package names and stay as they are; they don't appear in `main.js`.
+
+The user-facing docs (README, the [sync guide](./obsidian-sync-guide.md), the OneDrive doc and the services overview) describe Cloud Sync as its own project. The security change log and plan keep their references to the original project where they explain *why* something was changed.
 
 ### Network audit
 

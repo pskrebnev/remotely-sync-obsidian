@@ -1,6 +1,6 @@
 # Syncing Obsidian with this plugin
 
-A step-by-step guide to syncing an Obsidian vault across devices with this fork. It focuses on **Cloudflare R2** and **AWS S3**; WebDAV, Webdis, Dropbox and OneDrive work in a similar way.
+A step-by-step guide to syncing an Obsidian vault across devices with Cloud Sync. It focuses on **Cloudflare R2** and **AWS S3**; WebDAV, Webdis, Dropbox and OneDrive work in a similar way.
 
 **Back up your vault before you start.** Sync tools move and delete files; a backup is your safety net.
 
@@ -153,7 +153,7 @@ The plugin's own settings file is **never** synced, even with config-folder sync
 - **Config folder (`.obsidian`):** *Sync Config Dir (experimental)* syncs themes, snippets and other plugins' settings and code. Only enable it if nobody else can write to your bucket, because plugin code from the bucket runs on every device. Keep encryption on.
 - **Safety net:** *Abort Sync If Modification Above Percentage* (default 50%) stops a sync that would delete or change more than that share of your files, which protects you from mistakes such as pointing two vaults at the same bucket.
 - **Sync direction:** two-way (default), or *incremental push only* / *incremental pull only* for one-way setups such as a backup device.
-- **Not supported in this fork:** allow lists (use ignore paths instead), the push/pull directions *with delete*, and syncing only the bookmarks file.
+- **Not supported:** allow lists (use ignore paths instead), the push/pull directions *with delete*, and syncing only the bookmarks file.
 
 ## 10. Upgrade an existing encrypted bucket
 
@@ -171,7 +171,7 @@ The same button **rotates the salt** on an already upgraded bucket.
 | Message or symptom | Cause and fix |
 |---|---|
 | *refusing plain http S3 endpoint …* | The endpoint uses `http://` on a public host. Use `https://`. |
-| *Sync is paused: "Allow list" paths are set …* | An old configuration uses an allow list, which this fork doesn't support. Clear the list (shown in the settings while it has entries) and use *Regex Of Paths To Ignore* instead. |
+| *Sync is paused: "Allow list" paths are set …* | An old configuration uses an allow list, which Cloud Sync doesn't support. Clear the list (shown in the settings while it has entries) and use *Regex Of Paths To Ignore* instead. |
 | *Sync is paused: the sync direction … is not supported* | An old configuration uses a push/pull direction *with delete*. Choose another direction under *Sync Direction*. |
 | *The remote is encrypted, but no encryption password is set on this device* | Enter the same Encryption Password as on your other devices. |
 | *Re-encrypting the remote is unfinished on this device* | Run *Re-encrypt remote* again to finish it. |

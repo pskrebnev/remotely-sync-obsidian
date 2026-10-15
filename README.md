@@ -1,6 +1,9 @@
 # Cloud Sync
 A personal Obsidian plugin that syncs a vault with your own cloud storage, such as Cloudflare R2 or AWS S3, with end-to-end encryption. It's maintained for my own use.
 
+## Credits
+Cloud Sync is based on [Remotely Save](https://github.com/remotely-save/remotely-save) (Apache License 2.0).
+
 ## Disclaimer
 - **This is NOT the [official sync service](https://obsidian.md/sync) provided by Obsidian.**
 
@@ -22,7 +25,7 @@ A personal Obsidian plugin that syncs a vault with your own cloud storage, such 
 - **Skip Large files** and **skip paths** by custom regex conditions!
 - **[Sync Algorithm](./docs/sync_algorithm/v3/intro.md) is provided for discussion.**
 - **[Basic Conflict Detection And Handling](./docs/sync_algorithm/v3/intro.md)**: keep the newer or the larger file.
-- Open source: everything in this fork is under the Apache License 2.0. See [License](./LICENSE) for details.
+- Open source: everything is under the Apache License 2.0. See [License](./LICENSE) for details.
 
 ## Limitations
 - **Cloud services cost you money.** Always be aware of the costs and pricing. Specifically, all the operations, including but not limited to downloading, uploading, listing all files, calling any api, storage sizes, may or may not cost you money.
@@ -35,7 +38,7 @@ A personal Obsidian plugin that syncs a vault with your own cloud storage, such 
 - **Not supported:** allow lists ("only allow paths"; use "Ignore paths" instead), the push/pull sync directions *with delete*, and syncing only the bookmarks file. If an old configuration still uses an allow list or a "with delete" direction, sync pauses with a message until you change it.
 
 ## Security Hardening
-This fork is being hardened in phases, with Cloudflare R2 and AWS S3 first. Every change is documented in [docs/security-changes.md](./docs/security-changes.md); the findings and the plan are in [docs/security-fix-plan.md](./docs/security-fix-plan.md).
+The plugin was hardened in phases, with Cloudflare R2 and AWS S3 first. Every change is documented in [docs/security-changes.md](./docs/security-changes.md); the findings and the plan are in [docs/security-fix-plan.md](./docs/security-fix-plan.md).
 - [Phase 1: R2 / AWS S3 critical path](./docs/security-changes.md#phase-1-cloudflare-r2--aws-s3-critical-path): imported settings links are validated and must be confirmed; S3 endpoints must use https (except local/private hosts); OAuth codes, tokens and other secrets no longer appear in logs or notices; local file operations can't escape the vault.
 - [Phase 2: plugin settings file and credentials](./docs/security-changes.md#phase-2-plugin-settings-file-and-credential-storage): this plugin's `data.json` (with all credentials) is never synced to or from the bucket; R2/S3 keys and the encryption password are kept in Obsidian's secret storage (Obsidian 1.11.4+) instead of `data.json`; enabling config-folder sync shows a security warning.
 - [Phase 3: encryption](./docs/security-changes.md#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports): new encrypted vaults use rclone encryption with a random per-vault salt (shared through a small file in the bucket); a "Re-encrypt remote" action converts existing vaults (including old openssl ones) safely and resumably; exported settings links and QR codes are encrypted with a passphrase.
@@ -128,7 +131,7 @@ By default, the plugin doesn't sync config folder / files of obsidian (normally 
 
 However, in the latest version, you can enable syncing config folder in settings. Please be aware that it's an experimental feature. Notably some config files' modified times are changed everytime when Obsidian is opened, and this destroys the assumptions of the plugin, so some information may not be synced properly.
 
-The bookmarks of Obsidian are stored in the `.obsidian/bookmarks.json` file. Syncing only this file is not supported in this fork; they are synced together with the whole config folder.
+The bookmarks of Obsidian are stored in the `.obsidian/bookmarks.json` file. Syncing only this file is not supported; they are synced together with the whole config folder.
 
 This plugin's own settings file (`data.json`, which holds your credentials) is never synced. See [Phase 2](./docs/security-changes.md#phase-2-plugin-settings-file-and-credential-storage).
 

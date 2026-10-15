@@ -1,7 +1,7 @@
 # OneDrive (App Folder)
 
 - **This plugin is NOT an official Microsoft / OneDrive product.** The plugin just uses Microsoft's [OneDrive's public API](https://docs.microsoft.com/en-us/onedrive/developer/rest-api).
-- After the authorization, the plugin can read your name and email, and read and write files in your OneDrive's `/Apps/cloud-sync` folder. This fork only connects to the App Folder.
+- After the authorization, the plugin can read your name and email, and read and write files in your OneDrive's `/Apps/cloud-sync` folder. Cloud Sync only connects to the App Folder.
 - If you decide to authorize this plugin to connect to OneDrive, please go to plugin's settings, and choose OneDrive then follow the instructions.
 - Password-based end-to-end encryption is also supported. But please be aware that **the vault name itself is not encrypted**.
 - If you want to sync the files across multiple devices, **your vault name should be the same** while using default settings.
@@ -28,4 +28,4 @@ Onedrive's API does not allow uploading empty files. You can choose to skip them
 
 ### How to connect to root folder rather than the App Folder?
 
-Not possible in this fork. Upstream offered it as a paid PRO feature, which was removed from this fork.
+Not supported. Cloud Sync only connects to the App Folder.
