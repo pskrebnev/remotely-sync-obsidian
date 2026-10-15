@@ -15,7 +15,12 @@ import type {
 import type { Entity, WebdavConfig } from "./baseTypes";
 import { VALID_REQURL } from "./baseTypesObs";
 import { FakeFs } from "./fsAll";
-import { bufferToArrayBuffer, delay, splitFileSizeToChunkRanges } from "./misc";
+import {
+  bufferToArrayBuffer,
+  delay,
+  isInsecureRemoteUrl,
+  splitFileSizeToChunkRanges,
+} from "./misc";
 
 /**
  * https://stackoverflow.com/questions/32850898/how-to-check-if-a-string-has-any-non-iso-8859-1-characters-with-javascript
@@ -288,6 +293,11 @@ export class FakeFsWebdav extends FakeFs {
     // init client if not inited
     if (this.client !== undefined) {
       return;
+    }
+    if (isInsecureRemoteUrl(this.webdavConfig.address)) {
+      throw Error(
+        `refusing plain http WebDAV address ${this.webdavConfig.address}: credentials and files would be sent unencrypted; use https:// (http is only allowed for localhost or private network addresses)`
+      );
     }
 
     const cacheHeader = {

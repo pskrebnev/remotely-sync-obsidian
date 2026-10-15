@@ -128,4 +128,45 @@ describe("Secret storage", () => {
     const backend = new MemoryBackend();
     assert.equal(getSecretBackend({ secretStorage: backend }), backend);
   });
+
+  it("should also move WebDAV, Webdis and OAuth credentials", () => {
+    const backend = new MemoryBackend();
+    const settings = {
+      ...makeSettings(),
+      webdav: {
+        address: "https://dav",
+        password: "dav-pw",
+        customHeaders: "Authorization: Bearer x",
+      },
+      webdis: { address: "https://webdis", password: "webdis-pw" },
+      dropbox: {
+        accessToken: "dbx-at",
+        refreshToken: "dbx-rt",
+        clientID: "cid",
+      },
+      onedrive: {
+        accessToken: "od-at",
+        refreshToken: "od-rt",
+        clientID: "cid",
+      },
+    } as unknown as RemotelySavePluginSettings;
+    const onDisk = splitSecretsForDisk(settings, backend) as any;
+    for (const [section, key] of [
+      ["webdav", "password"],
+      ["webdav", "customHeaders"],
+      ["webdis", "password"],
+      ["dropbox", "accessToken"],
+      ["dropbox", "refreshToken"],
+      ["onedrive", "accessToken"],
+      ["onedrive", "refreshToken"],
+    ]) {
+      assert.equal(onDisk[section][key], "", `${section}.${key}`);
+    }
+    assert.equal(onDisk.dropbox.clientID, "cid");
+    assert.equal(onDisk.webdav.address, "https://dav");
+    const reloaded = JSON.parse(JSON.stringify(onDisk));
+    fillSecretsFromBackend(reloaded, backend);
+    assert.equal(reloaded.dropbox.refreshToken, "dbx-rt");
+    assert.equal(reloaded.webdav.customHeaders, "Authorization: Bearer x");
+  });
 });

@@ -18,6 +18,14 @@ export const SECRET_FIELDS: readonly (readonly string[])[] = [
   ["s3", "s3AccessKeyID"],
   ["s3", "s3SecretAccessKey"],
   ["password"],
+  ["webdav", "password"],
+  // may carry an Authorization header
+  ["webdav", "customHeaders"],
+  ["webdis", "password"],
+  ["dropbox", "accessToken"],
+  ["dropbox", "refreshToken"],
+  ["onedrive", "accessToken"],
+  ["onedrive", "refreshToken"],
 ];
 
 /**
