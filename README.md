@@ -3,6 +3,8 @@ This is yet another unofficial sync plugin for Obsidian.
 
 > **Note:** This repository is just a copy of [remotely-save/remotely-save](https://github.com/remotely-save/remotely-save).
 
+> **No PRO features.** The original project's paid "PRO" code (licensed under PolyForm Strict) has been removed, so this fork is fully Apache-licensed. Not available here: Google Drive, OneDrive (Full), Box, pCloud, Yandex Disk, Koofr, Azure Blob Storage, Smart Conflict, allow lists, bookmarks-only sync, and the push/pull-with-delete sync directions. S3 (including Cloudflare R2), WebDAV, Webdis, Dropbox and OneDrive (App Folder) work as before. Details: [Removal of PRO code](./docs/security-changes.md#removal-of-pro-code).
+
 ## Disclaimer
 - **This is NOT the [official sync service](https://obsidian.md/sync) provided by Obsidian.**
 
@@ -14,15 +16,8 @@ This is yet another unofficial sync plugin for Obsidian.
   - Amazon S3 or S3-compatible (Cloudflare R2 / BackBlaze B2 / MinIO / ...)
   - Dropbox
   - OneDrive for personal (App Folder)
-  - OneDrive for personal (Full) (PRO feature)
   - Webdav (NextCloud / InfiniCloud / Synology webdav server / ...)
   - Webdis
-  - Google Drive (GDrive) (PRO feature)
-  - Box (PRO feature)
-  - pCloud (PRO feature)
-  - Yandex Disk (PRO feature)
-  - Koofr (PRO feature)
-  - Azure Blob Storage (PRO feature)
   - [Here](./docs/services_connectable_or_not.md) shows more connectable (or not-connectable) services in details.
 - **Obsidian Mobile supported.** Vaults can be synced across mobile and desktop devices with the cloud service as the "broker".
 - **[End-to-end encryption](./docs/encryption/README.md) supported.** Files would be encrypted using openssl / rclone crypt format before being sent to the cloud **if** user specify a password.
@@ -30,8 +25,8 @@ This is yet another unofficial sync plugin for Obsidian.
 - **[Minimal Intrusive](./docs/minimal_intrusive_design.md).**
 - **Skip Large files** and **skip paths** by custom regex conditions!
 - **[Sync Algorithm](./docs/sync_algorithm/v3/intro.md) is provided for discussion.**
-- **[Basic Conflict Detection And Handling](./docs/sync_algorithm/v3/intro.md)** for free version. **[Advanced Smart Conflict Handling](./pro/README.md)** for PRO version. 
-- Source Available. See [License](./LICENSE) for details.
+- **[Basic Conflict Detection And Handling](./docs/sync_algorithm/v3/intro.md)**: keep the newer or the larger file.
+- Open source: everything in this fork is under the Apache License 2.0. See [License](./LICENSE) for details.
 
 ## Limitations
 - **Cloud services cost you money.** Always be aware of the costs and pricing. Specifically, all the operations, including but not limited to downloading, uploading, listing all files, calling any api, storage sizes, may or may not cost you money.
@@ -49,6 +44,7 @@ This fork is being hardened in phases, with Cloudflare R2 and AWS S3 first. Ever
 - [Phase 3: encryption](./docs/security-changes.md#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports): new encrypted vaults use rclone encryption with a random per-vault salt (shared through a small file in the bucket); a "Re-encrypt remote" action converts existing vaults (including old openssl ones) safely and resumably; exported settings links and QR codes are encrypted with a passphrase.
 - [Phase 4: CI and dependencies](./docs/security-changes.md#phase-4-ci-and-dependencies): CI fails on unreviewed high/critical advisories in runtime dependencies; GitHub Actions are pinned to commit SHAs; Dependabot proposes weekly updates; unused native packages were removed and `uuid` was upgraded.
 - [Phase 5: other backends and low-severity items](./docs/security-changes.md#phase-5-other-backends-and-low-severity-items): OAuth login callbacks only exist for configured services and only act during a login you started; WebDAV and Webdis must use https (except local/private hosts); WebDAV/Webdis passwords and Dropbox/OneDrive tokens move to Obsidian's secret storage; HTML in translated texts is sanitized.
+- [Removal of PRO code](./docs/security-changes.md#removal-of-pro-code): the PolyForm-licensed `pro` folder is deleted and the sync engine is the original project's Apache-licensed v0.4.25, so the whole fork can be changed and shared under Apache 2.0; 206 dependencies (including the Box and pCloud SDKs and their high-severity advisories) are gone and the plugin is half the size.
 
 ## Download and Install
 - Option #1: Use [Obsidian42 - BRAT](https://github.com/TfTHacker/obsidian42-brat) to install this plugin. Input `pskrebnev/remotely-sync-obsidian` in the configuration of BRAT.
@@ -86,7 +82,7 @@ This fork is being hardened in phases, with Cloudflare R2 and AWS S3 first. Ever
 ### OneDrive for personal (App Folder)
 - **This plugin is NOT an official Microsoft / OneDrive product.** The plugin just uses Microsoft's [OneDrive's public API](https://docs.microsoft.com/en-us/onedrive/developer/rest-api).
 - This plugin only works for "OneDrive for personal", and not works for "OneDrive for Business" (yet).
-- After the authorization, the plugin can read your name and email, and read and write files in your OneDrive's `/Apps/remotely-save` folder. **The free version of Remotely Save only connects to App Folder, while the PRO version can connect to the root folder in Onedrive. See below PRO part.** 
+- After the authorization, the plugin can read your name and email, and read and write files in your OneDrive's `/Apps/remotely-save` folder.
 - If you decide to authorize this plugin to connect to OneDrive, please go to plugin's settings, and choose OneDrive then follow the instructions.
 - Password-based end-to-end encryption is also supported. But please be aware that **the vault name itself is not encrypted**.
 - If you want to sync the files across multiple devices, **your vault name should be the same** while using default settings.
@@ -127,12 +123,14 @@ This fork is being hardened in phases, with Cloudflare R2 and AWS S3 first. Ever
 - You can configure sync on save in settings.
 - In sync on save mode, if any error occurs, the plugin would **fail silently**.
 
-## Config Folder / Files and Bookmarks
+## Config Folder / Files
 By default, the plugin doesn't sync config folder / files of obsidian (normally `.obsidian` folder) because it's one of the hidden files. 
 
 However, in the latest version, you can enable syncing config folder in settings. Please be aware that it's an experimental feature. Notably some config files' modified times are changed everytime when Obsidian is opened, and this destroys the assumptions of the plugin, so some information may not be synced properly.
 
-Moreover, the bookmarks of Obsidian are actually stored in `.obsidian/bookmarks.json` file. You can also set syncing this file (instead of the whole config folder) in settings. The plugin will keep the latest modified one across devices.
+The bookmarks of Obsidian are stored in the `.obsidian/bookmarks.json` file. Syncing only this file is not supported in this fork; they are synced together with the whole config folder.
+
+This plugin's own settings file (`data.json`, which holds your credentials) is never synced. See [Phase 2](./docs/security-changes.md#phase-2-plugin-settings-file-and-credential-storage).
 
 ## Hidden Files Or Folders
 **By default, all files or folder starting with `.` (dot) or `_` (underscore) are treated as hidden files, and would NOT be synced.** It's useful if you have some files just staying locally. But this strategy also means that themes / other plugins / settings of this plugin would neither be synced.

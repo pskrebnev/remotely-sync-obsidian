@@ -11,6 +11,7 @@ Each phase is developed on its own branch (`security-update-phaseN`) and merged 
 | [Phase 3](#phase-3-encryption-per-vault-salt-re-encryption-encrypted-exports) | Per-vault encryption salt, "Re-encrypt remote" migration, passphrase-encrypted settings exports | Done |
 | [Phase 4](#phase-4-ci-and-dependencies) | CI audit gate, Dependabot, SHA-pinned actions, fewer vulnerable dependencies | Done |
 | [Phase 5](#phase-5-other-backends-and-low-severity-items) | OAuth callbacks gated, https for WebDAV/Webdis, more credentials in secret storage, HTML sanitizing, Webdis escaping | Done |
+| [Removal of PRO code](#removal-of-pro-code) | PolyForm-licensed `pro/` removed; sync engine restored from the Apache-licensed v0.4.25 | Done |
 
 ---
 
@@ -458,3 +459,79 @@ These haven't been run yet.
 | `src/secretStore.ts` | More `SECRET_FIELDS` |
 | `src/misc.ts` | `stringToFragment` sanitizes |
 | `tests/securityHelpers.test.ts`, `tests/secretStore.test.ts`, `tests/fsWebdis.test.ts` | New tests |
+
+---
+
+## Removal of PRO code
+
+Branch: `remove-pro`. Resolves #17 with **option C (full removal)**. This isn't legal advice; it's how the licenses read.
+
+### Why
+
+The original project put its paid "PRO" features, and since June 2024 also its **sync engine**, in `pro/`, under the **PolyForm Strict License 1.0.0**. That license allows noncommercial *use* only: it grants no right to **distribute** the code or to **change** it ("other than distributing the software or making changes or new works based on the software").
+
+For this fork that meant three problems:
+- a public repository containing `pro/` arguably distributes PolyForm code;
+- the sync engine couldn't legally be fixed (for example #4 and #5);
+- PR #1 had made type-only edits to two `pro/` files.
+
+None of the PRO features could work in this fork anyway: they need a paid upstream account and upstream's OAuth apps.
+
+### What was done
+
+**1. `pro/` is deleted completely**, including the PRO services, Smart Conflict, the account and subscription check, duplicate-file cleanup, PRO settings pages, translations and tests. No PolyForm code is copied or adapted anywhere.
+
+**2. The sync engine comes from the original project's last fully Apache-licensed release.** `src/sync.ts` is restored from **v0.4.25** (commit `0802767`, 25 May 2024). That's the version before `pro/` existed, so the engine has no PolyForm code or dependencies.
+- The later June 2024 engine (`9f67d41^`) was also under `src/`, but it already imported `pro/` modules, so it wasn't used.
+- Only adaptations to the current code were made: the import path, two decision names (`conflict_*_then_keep_both`, restored in `src/baseTypes.ts`), and the call in `src/main.ts`, which no longer passes `pluginVersion`/`configSaver` (those were only used by the PRO check).
+
+**3. The free code no longer references PRO:**
+- `src/baseTypes.ts`: services are now `s3`, `webdav`, `dropbox`, `onedrive` and `webdis`. The PRO configs are gone, and the conflict and direction types are narrowed to what the engine supports.
+- `src/main.ts`: removed the PRO imports, defaults, OAuth callbacks (OneDrive Full, PRO, Box, pCloud, Yandex Disk, Koofr), credential-expiry checks and settings defaults.
+- `src/settings.ts`: removed the PRO services from the chooser, their settings pages, export buttons, the PRO account section, Smart Conflict and duplicate cleanup.
+- `src/fsGetter.ts`, `src/importExport.ts`, `src/i18n.ts`, `src/localdb.ts`, `src/debugMode.ts`: removed PRO references. Exports also drop any PRO sections still present in an old `data.json`.
+- Build and CI: removed the PRO client IDs, secrets and website from `webpack.config.js`, `esbuild.config.mjs`, both workflows and `.env.example.txt`.
+- `LICENSE`: the repository is now Apache 2.0 only.
+
+**4. Dependencies used only by PRO were removed:**
+- `box-typescript-sdk-gen`, `pcloud-sdk-js`, `@azure/storage-blob`;
+- `node-diff3`, `@sanity/diff-match-patch` (Smart Conflict);
+- `openapi-fetch`, `openapi-typescript` (Koofr).
+
+That's **206 packages** fewer. `npm audit --omit=dev` went from 13 findings (9 high) to **4 low**: the two high advisories (`basic-ftp` via the Box SDK, `braces` via the pCloud SDK) are gone, so `scripts/audit-allowlist.json` is now empty. The built `main.js` went from **4.4 MB to 2.3 MB**.
+
+**5. Documentation:**
+- removed `docs/pro/` and the docs of the removed services (Google Drive, OneDrive Full, Box, pCloud, Yandex Disk, Koofr, Azure Blob Storage);
+- the README, the OneDrive doc and the services overview now say what isn't available.
+
+### What still works
+
+| | |
+|---|---|
+| **Services** | S3 and S3-compatible (**Cloudflare R2**, AWS S3, Backblaze B2, MinIO, …), WebDAV, Webdis, Dropbox and OneDrive (App Folder). Dropbox and OneDrive still need your own OAuth app IDs at build time (Phase 5). |
+| **Sync** | Two-way and one-way (incremental push or pull only), conflict handling "keep newer" or "keep larger", skip large files, ignore paths, sync `_` items, config-folder sync, protection against mass deletes, scheduled sync and sync on save |
+| **Security phases 1–5** | All unchanged. They live in the Apache code around the engine: validated imports, https-only, secret storage, `data.json` never synced, per-vault salt and re-encryption, encrypted exports, CI gate, gated OAuth callbacks |
+
+### What is no longer available
+
+These were added by the original project **after** v0.4.25 and exist only as PolyForm code, so they couldn't be kept:
+
+| Feature | How this fork handles existing settings |
+|---|---|
+| PRO services (Google Drive, OneDrive Full, Box, pCloud, Yandex Disk, Koofr, Azure Blob Storage) | Removed from the UI. If one was selected, the service switches to S3 with a notice (`migrateRemovedFeatureSettings`) |
+| Smart Conflict | Becomes "keep newer", with a notice |
+| Bookmarks-only sync | Turned off, with a notice. Bookmarks still sync as part of the whole config folder |
+| **Allow lists** (`onlyAllowPaths`) | **Sync refuses to run** while it has entries (`getUnsupportedSyncSettingsReason`), because syncing everything instead of only the allowed paths could upload private files. The field stays visible only so it can be cleared. Use *Ignore paths* instead. |
+| **Push/pull *with delete*** sync directions | **Sync refuses to run** until a supported direction is chosen, because the old engine would otherwise fall back to two-way sync |
+| Later engine refinements | File/folder name validation, keeping empty folders, the reworked rules for the config folder and bookmarks, and `ctime` support. Re-implementing any of them means writing them anew, *not* porting them from `pro/` |
+
+### Notes and follow-ups
+
+- **Git history still contains `pro/`.** Deleting the folder doesn't remove it from earlier commits, which are still public. To stop distributing it completely, rewrite the history to remove `pro/` from every commit, then force-push all branches. That changes every commit hash. Alternatively, make the repository private.
+- **The engine is now yours to change.** #4 (path checks) and #5 (`data.json`) can now also be enforced *inside* `src/sync.ts`, on top of the current guards.
+- **Tests:**
+  - the 19 engine and Smart Conflict tests were under `pro/tests` (PolyForm) and were removed with it;
+  - v0.4.25 had no engine tests of its own;
+  - `tests/removedFeatures.test.ts` covers the migrations and refusals (4 new).
+
+  99 tests pass. Typecheck, lint, audit gate and production build are clean. **Writing new engine tests and testing sync manually against R2 are the most important next steps.**
