@@ -70,7 +70,7 @@
     "@sanity/diff-match-patch": "^3.1.1",
     "@smithy/fetch-http-handler": "^3.2.4",
     "@smithy/protocol-http": "^4.1.0",
-    "@smithy/querystring-builder": "^3.0.3",
+    "@smithy/querystring-builder": "^4.5.2",
     "acorn": "^8.12.1",
     "aggregate-error": "^5.0.0",
     "assert": "^2.1.0",
