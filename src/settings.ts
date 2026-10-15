@@ -958,7 +958,13 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
       return this.plugin.i18n.t(x, vars);
     };
 
-    containerEl.createEl("h1", { text: "Sync It Simply Stupid" });
+    // Obsidian's own heading style: a plain <h1> is not shown in plugin settings
+    new Setting(containerEl)
+      .setName(this.plugin.manifest.name)
+      .setDesc(
+        `Version ${this.plugin.manifest.version}. Sync your vault with your own cloud storage, with end-to-end encryption.`
+      )
+      .setHeading();
 
     //////////////////////////////////////////////////
     // below for service chooser (part 1/2)

@@ -56,6 +56,8 @@ The plugin connects only to the storage you configure. It has no tracking, analy
 ## Usage
 **Step-by-step guide:** [Syncing Obsidian with this plugin](./docs/obsidian-sync-guide.md) covers installing, setting up Cloudflare R2 or AWS S3, encryption, adding devices, everyday use and troubleshooting. The sections below are short service-specific notes.
 
+**Cloudflare R2:** [complete setup guide](./docs/remote_services/s3_cloudflare_r2/README.md), from creating the bucket and a bucket-scoped API token to the plugin settings, encryption, adding devices and troubleshooting.
+
 ### S3
 - Tutorials / Examples:
   - [Cloudflare R2](./docs/remote_services/s3_cloudflare_r2/README.md)

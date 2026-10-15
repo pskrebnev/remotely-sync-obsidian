@@ -579,6 +579,7 @@ Branch: `rebrand-sync-it-simply-stupid`. The plugin is now a personal project un
 - **`manifest.json` / `manifest-beta.json`:** new description, author `pskrebnev`, `authorUrl` pointing to your GitHub profile. The original author and the funding link (`remotelysave.com`) are removed.
 - **`package.json`:** name `sync-it-simply-stupid`, new description and author.
 - **Version:** `0.8.4` (`manifest.json`, `manifest-beta.json`, `package.json`, `versions.json`).
+- **Settings page title:** the page starts with an Obsidian heading showing the plugin name, version and a one-line description. A plain `<h1>` isn't displayed by current Obsidian versions.
 - **Language: English by default.** The default used to be "auto", which followed Obsidian's `moment` locale and could show Chinese. A stored "auto" is migrated to "en". The lookup also had a bug: any explicit language fell back to English. Now an explicit language is honoured, and the Chinese translations stay available.
 
 ### Compiled files contain no references to the original project or PRO
