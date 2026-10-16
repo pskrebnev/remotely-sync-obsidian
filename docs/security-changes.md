@@ -613,3 +613,40 @@ The user-facing docs (README, the [sync guide](./obsidian-sync-guide.md), the On
 See [privacy-and-network.md](./privacy-and-network.md):
 - the plugin only connects to the storage you configure (and to Dropbox/Microsoft when those are selected and connected);
 - there is no tracking, analytics, telemetry or update check.
+
+---
+
+## Fix: "Check Connectivity" showed nothing
+
+Branch: `fix-check-connectivity`. Clicking **Check** could end with no result at all: no "Great! …" and no failure message.
+
+### Cause
+
+The plugin's real S3 code was run against an in-memory S3 server (see Tests). Three ways to end silently turned up:
+1. **A request that never answers waited forever.** The S3 request handler raced each request against `requestTimeout(undefined)`, which never fires. An unreachable host (network, VPN, firewall, DNS) left the check hanging after "Checking…".
+2. **Errors while creating the client escaped the click handler.** For example, the refusal of a plain `http://` endpoint (Phase 1) became an unhandled promise rejection that is never shown.
+3. **The failure reason was never displayed.** The handler passed an `Error` object to `new Notice(...)`, which only accepts text or a DOM fragment. The S3 check also relied on Obsidian's non-standard `String.prototype.contains`.
+
+### Fix
+
+- **`src/connectivity.ts`, `runConnectivityCheck`.** Used by all five Check buttons (S3, Dropbox, OneDrive, WebDAV, Webdis). It catches errors from creating the client and from the check, stops after **30 seconds**, and turns any error (including `AggregateError`) into text.
+- **The buttons** show "Checking…", stay disabled while the check runs, and always end with the success message or the failure message plus the reason (shown for 15 seconds and logged to the console).
+- **S3 request timeout:** the handler (`ObsHttpHandler`, `src/fsS3.ts`) now uses a default timeout of **2 minutes per request**, so neither a check nor a sync can hang forever.
+- **Clearer S3 errors:**
+  - `checkConnect` explains an endpoint that contains a path, such as the bucket name the R2 dashboard appends to the S3 API address (`endpointHasPath`).
+  - It uses standard `includes()` instead of `contains()`. The mobile status-bar code in `src/misc.ts` was switched to `includes()` too.
+
+### Tests
+
+- **Running the real S3 client in tests:**
+  - `tests/support/obsidian-stub.ts` stands in for the `obsidian` module. Its `requestUrl` follows Obsidian's documented contract: the body is a string or `ArrayBuffer`, and status 400+ throws.
+  - `tests/support/register-obsidian-stub.cjs` loads that stub for tests only.
+  - `tests/support/fakeS3Server.ts` is the in-memory S3 server. It can also refuse every request (403) or never answer.
+- `tests/connectivity.test.ts`: errors become text; success; an error while creating the client; an `Error` object passed to the callback; an exception; a hang ending in a timeout.
+- `tests/fsS3Connectivity.test.ts` (end to end):
+  - valid settings succeed, and the test file is cleaned up;
+  - a 403, the bucket name in the endpoint, a wrong bucket and an `http://` endpoint are each reported with their reason;
+  - an unresponsive server ends with "No answer";
+  - the request handler applies its default timeout and rejects a request that hangs.
+- `endpointHasPath` cases.
+- Result: 117 tests pass (16 new).

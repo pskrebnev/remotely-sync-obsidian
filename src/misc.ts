@@ -610,8 +610,8 @@ export const changeMobileStatusBar = (
         if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
           const k = mutation.addedNodes[0] as Element;
           if (
-            k.className.contains("mobile-navbar") ||
-            k.className.contains("mobile-toolbar")
+            k.className.includes("mobile-navbar") ||
+            k.className.includes("mobile-toolbar")
           ) {
             // have to wait, otherwise the height is not correct??
             await delay(300);
