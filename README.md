@@ -45,6 +45,12 @@ The plugin was hardened in phases, with Cloudflare R2 and AWS S3 first. Every ch
 - [Phase 4: CI and dependencies](./docs/security-changes.md#phase-4-ci-and-dependencies): CI fails on unreviewed high/critical advisories in runtime dependencies; GitHub Actions are pinned to commit SHAs; Dependabot proposes weekly updates; unused native packages were removed and `uuid` was upgraded.
 - [Phase 5: other backends and low-severity items](./docs/security-changes.md#phase-5-other-backends-and-low-severity-items): OAuth login callbacks only exist for configured services and only act during a login you started; WebDAV and Webdis must use https (except local/private hosts); WebDAV/Webdis passwords and Dropbox/OneDrive tokens move to Obsidian's secret storage; HTML in translated texts is sanitized.
 
+## Plans for Future
+Investigated but not implemented yet. Details, estimates and plans are in [docs/future-plans.md](./docs/future-plans.md).
+- **Status bar:** the red crossed sync icon in the bottom-right corner is from Obsidian's built-in **Sync** core plugin (Obsidian Sync, not connected), not from this plugin, which only shows text. Turn it off under *Settings → Core plugins → Sync*. A green/red status icon for this plugin is planned (~2–3 hours).
+- **Tooling:** Bun or Vite+ isn't needed now; making the existing esbuild build the main build is the cheapest speed-up.
+- **Smaller items:** automatically strip a bucket name pasted into the S3 endpoint, path checks inside the sync engine, S3 checksum compatibility if uploads fail, publishing a release for BRAT, and removing `pro/` from the git history.
+
 ## Download and Install
 - Option #1: Use [Obsidian42 - BRAT](https://github.com/TfTHacker/obsidian42-brat) to install this plugin. Input `pskrebnev/remotely-sync-obsidian` in the configuration of BRAT.
 - Option #2: Manually download assets (`main.js`, `manifest.json`, `styles.css`) from the latest [release](https://github.com/pskrebnev/remotely-sync-obsidian/releases).
