@@ -94,7 +94,7 @@ Notes:
 - Always use `https://`. The plugin refuses `http://` endpoints on public hosts, and the *Endpoint* field shows a warning while you type one.
 - On Obsidian 1.11.4+, the Access Key ID and Secret Access Key are stored in Obsidian's secret storage, not in the plugin's `data.json`.
 
-Click **Check Connectivity → Check**. "Great! The bucket can be accessed." means you're ready.
+Click **Check Connectivity → Check**. "Great! The bucket can be accessed." means you're ready. If it fails, the message names the reason (for example `403`, a path in the endpoint, or no answer within 30 seconds); see [Troubleshooting](#9-troubleshooting).
 
 > **If the check fails but every value is correct:** with *Object Read & Write* tokens, R2 can reject the request the check uses, even though syncing works. Run a dry run (see [section 6](#6-first-sync)) to confirm.
 
@@ -153,6 +153,7 @@ On the first sync, the plugin stores a random per-vault salt in a small file in 
 | `NoSuchBucket`, or errors right after entering the endpoint | The **Endpoint** still ends with the bucket name (`…cloudflarestorage.com/temp-obsidian`): remove everything after `.com`. Also check the **Bucket Name** spelling, and that the endpoint matches the bucket's jurisdiction (an EU-jurisdiction bucket needs `.eu.` in the host). |
 | `RequestTimeTooSkewed` | The device clock is wrong. Turn on automatic date and time. |
 | Uploads fail with a checksum error | R2 rejected the checksum headers that newer AWS SDKs send. The fix is a code change (`requestChecksumCalculation: "WHEN_REQUIRED"` in `getS3Client`, `src/fsS3.ts`); see [security-changes.md, Phase 1](../../security-changes.md#manual-test-checklist-obsidian), item 5. |
+| *Check Connectivity*: "No answer within 30 seconds" | The endpoint host can't be reached: check the address, your network, VPN or firewall. The check (and every S3 request) now gives up instead of waiting forever. |
 | *The remote is encrypted, but no encryption password is set on this device* | Enter the same **Encryption Password** as on your other devices. |
 | *Abort the sync …* (modification percentage) | The sync would change many files at once. Check that the bucket and prefix are the right ones before raising the limit. |
 

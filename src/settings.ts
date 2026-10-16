@@ -8,7 +8,7 @@ import {
   Setting,
   requireApiVersion,
 } from "obsidian";
-import type { TextComponent } from "obsidian";
+import type { ButtonComponent, TextComponent } from "obsidian";
 import type {
   CipherMethodType,
   ConflictActionType,
@@ -22,6 +22,7 @@ import type {
 
 import { API_VER_ENSURE_REQURL_OK, VALID_REQURL } from "./baseTypesObs";
 import { messyConfigToNormal } from "./configPersist";
+import { runConnectivityCheck } from "./connectivity";
 import {
   exportVaultProfilerResultsToFiles,
   exportVaultSyncPlansToFiles,
@@ -948,6 +949,37 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  /**
+   * Shared by every "Check Connectivity" button: always ends with a
+   * visible result, including the reason when it fails.
+   */
+  async checkConnectivity(
+    button: ButtonComponent,
+    succKey: TransItemType,
+    failKey: TransItemType
+  ) {
+    const t = (x: TransItemType, vars?: any) => {
+      return this.plugin.i18n.t(x, vars);
+    };
+    button.setDisabled(true);
+    new Notice(t("settings_checkonnectivity_checking"));
+    try {
+      const res = await runConnectivityCheck(() =>
+        getClient(this.plugin.settings, this.app.vault.getName(), () =>
+          this.plugin.saveSettings()
+        )
+      );
+      if (res.ok) {
+        new Notice(t(succKey));
+      } else {
+        console.warn(res.message);
+        new Notice(`${t(failKey)}\n${res.message}`, 15 * 1000);
+      }
+    } finally {
+      button.setDisabled(false);
+    }
+  }
+
   display(): void {
     const { containerEl } = this;
     containerEl.style.setProperty("overflow-wrap", "break-word");
@@ -1258,22 +1290,11 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
       .addButton(async (button) => {
         button.setButtonText(t("settings_checkonnectivity_button"));
         button.onClick(async () => {
-          new Notice(t("settings_checkonnectivity_checking"));
-          const client = getClient(
-            this.plugin.settings,
-            this.app.vault.getName(),
-            () => this.plugin.saveSettings()
+          await this.checkConnectivity(
+            button,
+            "settings_s3_connect_succ",
+            "settings_s3_connect_fail"
           );
-          const errors = { msg: "" };
-          const res = await client.checkConnect((err: any) => {
-            errors.msg = err;
-          });
-          if (res) {
-            new Notice(t("settings_s3_connect_succ"));
-          } else {
-            new Notice(t("settings_s3_connect_fail"));
-            new Notice(errors.msg);
-          }
         });
       });
 
@@ -1437,23 +1458,11 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
       .addButton(async (button) => {
         button.setButtonText(t("settings_checkonnectivity_button"));
         button.onClick(async () => {
-          new Notice(t("settings_checkonnectivity_checking"));
-          const client = getClient(
-            this.plugin.settings,
-            this.app.vault.getName(),
-            () => this.plugin.saveSettings()
+          await this.checkConnectivity(
+            button,
+            "settings_dropbox_connect_succ",
+            "settings_dropbox_connect_fail"
           );
-
-          const errors = { msg: "" };
-          const res = await client.checkConnect((err: any) => {
-            errors.msg = `${err}`;
-          });
-          if (res) {
-            new Notice(t("settings_dropbox_connect_succ"));
-          } else {
-            new Notice(t("settings_dropbox_connect_fail"));
-            new Notice(errors.msg);
-          }
         });
       });
 
@@ -1595,22 +1604,11 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
       .addButton(async (button) => {
         button.setButtonText(t("settings_checkonnectivity_button"));
         button.onClick(async () => {
-          new Notice(t("settings_checkonnectivity_checking"));
-          const client = getClient(
-            this.plugin.settings,
-            this.app.vault.getName(),
-            () => this.plugin.saveSettings()
+          await this.checkConnectivity(
+            button,
+            "settings_onedrive_connect_succ",
+            "settings_onedrive_connect_fail"
           );
-          const errors = { msg: "" };
-          const res = await client.checkConnect((err: any) => {
-            errors.msg = `${err}`;
-          });
-          if (res) {
-            new Notice(t("settings_onedrive_connect_succ"));
-          } else {
-            new Notice(t("settings_onedrive_connect_fail"));
-            new Notice(errors.msg);
-          }
         });
       });
 
@@ -1825,26 +1823,13 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
       .addButton(async (button) => {
         button.setButtonText(t("settings_checkonnectivity_button"));
         button.onClick(async () => {
-          new Notice(t("settings_checkonnectivity_checking"));
-          const client = getClient(
-            this.plugin.settings,
-            this.app.vault.getName(),
-            () => this.plugin.saveSettings()
+          await this.checkConnectivity(
+            button,
+            "settings_webdav_connect_succ",
+            VALID_REQURL
+              ? "settings_webdav_connect_fail"
+              : "settings_webdav_connect_fail_withcors"
           );
-          const errors = { msg: "" };
-          const res = await client.checkConnect((err: any) => {
-            errors.msg = `${err}`;
-          });
-          if (res) {
-            new Notice(t("settings_webdav_connect_succ"));
-          } else {
-            if (VALID_REQURL) {
-              new Notice(t("settings_webdav_connect_fail"));
-            } else {
-              new Notice(t("settings_webdav_connect_fail_withcors"));
-            }
-            new Notice(errors.msg);
-          }
         });
       });
 
@@ -1959,22 +1944,11 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
       .addButton(async (button) => {
         button.setButtonText(t("settings_checkonnectivity_button"));
         button.onClick(async () => {
-          new Notice(t("settings_checkonnectivity_checking"));
-          const client = getClient(
-            this.plugin.settings,
-            this.app.vault.getName(),
-            () => this.plugin.saveSettings()
+          await this.checkConnectivity(
+            button,
+            "settings_webdis_connect_succ",
+            "settings_webdis_connect_fail"
           );
-          const errors = { msg: "" };
-          const res = await client.checkConnect((err: any) => {
-            errors.msg = `${err}`;
-          });
-          if (res) {
-            new Notice(t("settings_webdis_connect_succ"));
-          } else {
-            new Notice(t("settings_webdis_connect_fail"));
-            new Notice(errors.msg);
-          }
         });
       });
 

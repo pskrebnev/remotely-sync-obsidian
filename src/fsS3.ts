@@ -48,7 +48,9 @@ import { FakeFs } from "./fsAll";
  * that is released under Apache 2 License.
  * But this uses Obsidian requestUrl instead.
  */
-class ObsHttpHandler extends FetchHttpHandler {
+export const DEFAULT_S3_REQUEST_TIMEOUT_MS = 2 * 60 * 1000;
+
+export class ObsHttpHandler extends FetchHttpHandler {
   requestTimeoutInMs: number | undefined;
   reverseProxyNoSignUrl: string | undefined;
   constructor(
@@ -56,8 +58,9 @@ class ObsHttpHandler extends FetchHttpHandler {
     reverseProxyNoSignUrl?: string
   ) {
     super(options);
+    // without a timeout, a request that never answers would wait forever
     this.requestTimeoutInMs =
-      options === undefined ? undefined : options.requestTimeout;
+      options?.requestTimeout ?? DEFAULT_S3_REQUEST_TIMEOUT_MS;
     this.reverseProxyNoSignUrl = reverseProxyNoSignUrl;
   }
   async handle(
@@ -162,6 +165,23 @@ class ObsHttpHandler extends FetchHttpHandler {
 ////////////////////////////////////////////////////////////////////////////////
 // other stuffs
 ////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * True if the endpoint has a path after the host, e.g. the bucket name
+ * that dashboards like Cloudflare R2 show appended to the S3 API address.
+ */
+export const endpointHasPath = (endpoint: string) => {
+  const e = endpoint.trim();
+  if (e === "") {
+    return false;
+  }
+  try {
+    const url = new URL(/^https?:\/\//.test(e) ? e : `https://${e}`);
+    return url.pathname !== "" && url.pathname !== "/";
+  } catch {
+    return false;
+  }
+};
 
 export const simpleTransRemotePrefix = (x: string) => {
   if (x === undefined) {
@@ -824,9 +844,6 @@ export class FakeFsS3 extends FakeFs {
 
   async checkConnect(callbackFunc?: any): Promise<boolean> {
     try {
-      // const results = await this.s3Client.send(
-      //   new HeadBucketCommand({ Bucket: this.s3Config.s3BucketName })
-      // );
       // very simplified version of listing objects
       const confCmd = {
         Bucket: this.s3Config.s3BucketName,
@@ -847,18 +864,17 @@ export class FakeFsS3 extends FakeFs {
       }
     } catch (err: any) {
       console.debug(err);
-      if (callbackFunc !== undefined) {
-        if (this.s3Config.s3Endpoint.contains(this.s3Config.s3BucketName)) {
-          const err2 = new AggregateError([
+      if (endpointHasPath(this.s3Config.s3Endpoint)) {
+        callbackFunc?.(
+          new AggregateError([
             err,
             new Error(
-              "Maybe you've included the bucket name inside the endpoint setting. Please remove the bucket name and try again."
+              "The endpoint must not contain a path such as the bucket name: remove everything after the host (e.g. use https://<ACCOUNT_ID>.r2.cloudflarestorage.com, not .../<bucket>)."
             ),
-          ]);
-          callbackFunc(err2);
-        } else {
-          callbackFunc(err);
-        }
+          ])
+        );
+      } else {
+        callbackFunc?.(err);
       }
       return false;
     }
