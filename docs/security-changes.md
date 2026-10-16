@@ -650,3 +650,49 @@ The plugin's real S3 code was run against an in-memory S3 server (see Tests). Th
   - the request handler applies its default timeout and rejects a request that hangs.
 - `endpointHasPath` cases.
 - Result: 117 tests pass (16 new).
+
+---
+
+## Fix: files uploaded directly to the bucket broke every sync
+
+Branch: `foreign-objects-and-sync-log`. A PDF uploaded through the Cloudflare dashboard made every sync fail with "error while sync".
+
+### Cause
+
+With encryption on, the sync lists the bucket and decrypts every object name (`FakeFsEncrypt._dealWithWalk`). A name like `report.pdf` isn't an encrypted name.
+- The rclone worker rejected with the bare string `"error"`. That aborted the whole listing, so nothing was uploaded or downloaded.
+- The error handler looked for `error.message`, found none on a string, and showed the generic "error while sync".
+- The password check (`isPasswordOk`) also used whichever object was listed first, so a foreign first object made it fail too.
+
+The `_sync-it-simply-stupid-encryption.json` file was the only object because it's written before the sync engine starts.
+
+### Fix
+
+- **Foreign objects are skipped** (`src/foreignObjects.ts`). A name the encryption can't produce, such as one with a dot, space or other character outside the encrypted alphabet, is skipped and reported in a notice: never downloaded, deleted or decrypted (`FakeFsEncrypt.skippedForeignKeys`).
+- **Encrypted-looking names that don't decrypt still stop the sync**, now with a message naming the object. They could mean a wrong password, a re-encryption on another device, or damage. Skipping them could make the engine treat files as deleted remotely and remove local copies.
+- **The password check ignores foreign objects:** it reads the raw listing and tests a name the plugin wrote. A wrong password is still detected.
+- **Encryption setup ignores foreign objects:** a bucket that only contains foreign objects counts as empty, so a new setup still gets its per-vault salt.
+- **Error messages:** the rclone worker rejects with a real `Error`. Sync errors go through `errorToMessage`, so plain strings are readable too.
+- **Errors stay on screen until clicked:**
+  - sync errors;
+  - refused syncs (unsupported settings, encryption setup);
+  - failed connectivity checks;
+  - failed re-encryption;
+  - the skipped-objects notice.
+- **Sync log** (`src/syncLog.ts`, `src/syncLogModal.ts`, command **show sync log**):
+  - every sync, connectivity check and re-encryption is appended to `.obsidian/plugins/sync-it-simply-stupid/sync-log.txt` (newest 1,000 lines);
+  - each entry has the time, the outcome, the number of file operations, error messages and skipped objects;
+  - text is sanitized (URL query strings, secret-looking values, AWS access key IDs) and vault file names aren't logged;
+  - the file is never synced.
+
+### Tests
+
+- `tests/foreignObjects.test.ts`: which names are certainly foreign for rclone and openssl, and which aren't (`README`, `notes/` could be encrypted names).
+- `tests/syncLog.test.ts`: sanitizing (query strings, passwords, tokens, authorization, codes, access key IDs), readable ordinary messages, the entry format, and keeping only the newest lines.
+- `tests/foreignObjectsSync.test.ts` (end to end: the real encryption layer, the real S3 client and the in-memory server, with a foreign `report.pdf` listed first):
+  - the password check passes;
+  - the walk returns only the plugin's file, and the foreign object is reported and left in place;
+  - a wrong password is still detected;
+  - an encrypted-looking name that doesn't decrypt stops the walk with a clear message.
+- Test support: the rclone web worker import is stubbed in tests (`tests/support/worker-stub.ts`).
+- Result: 130 tests pass (13 new).

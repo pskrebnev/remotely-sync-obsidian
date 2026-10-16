@@ -147,7 +147,7 @@ export class CipherRclone {
         const { outputName, status } = event.data as RecvMsg;
 
         if (status === "error") {
-          reject("error");
+          reject(new Error(`cannot decrypt the name "${inputName}"`));
         } else {
           if (outputName === undefined) {
             reject("unknown outputName after decryptNameByCallingWorker");
@@ -228,7 +228,7 @@ export class CipherRclone {
         const { outputContent, status } = event.data as RecvMsg;
 
         if (status === "error") {
-          reject("error");
+          reject(new Error("cannot decrypt the content"));
         } else {
           if (outputContent === undefined) {
             reject("unknown outputContent after decryptContentByCallingWorker");

@@ -29,6 +29,7 @@ import {
 } from "./baseTypes";
 import { API_VER_ENSURE_REQURL_OK } from "./baseTypesObs";
 import { messyConfigToNormal, normalConfigToMessy } from "./configPersist";
+import { errorToMessage } from "./connectivity";
 import { exportVaultSyncPlansToFiles } from "./debugMode";
 import {
   decideEncryptionSalt,
@@ -37,6 +38,7 @@ import {
   writeRemoteEncryptionParams,
 } from "./encryptionParams";
 import { decryptExportPayload } from "./exportCrypto";
+import { partitionForeign } from "./foreignObjects";
 import type { FakeFs } from "./fsAll";
 import {
   DEFAULT_DROPBOX_CONFIG,
@@ -96,6 +98,13 @@ import {
 import { SyncItSimplyStupidSettingTab } from "./settings";
 import { syncer } from "./sync";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
+import {
+  SYNC_LOG_FILE_NAME,
+  type SyncLogEntry,
+  appendLogLines,
+  formatSyncLogEntry,
+} from "./syncLog";
+import { SyncLogModal } from "./syncLogModal";
 
 const DEFAULT_SETTINGS: SyncItSimplyStupidPluginSettings = {
   s3: DEFAULT_S3_CONFIG,
@@ -365,14 +374,17 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
       }
     };
 
+    // collected for the sync log; errors stay on screen until clicked
+    const syncErrors: string[] = [];
+    let plannedActions = 0;
     const errNotifyFunc = async (s: SyncTriggerSourceType, error: Error) => {
       console.error(error);
-      if (error instanceof AggregateError) {
-        for (const e of error.errors) {
-          getNotice(s, e.message, 10 * 1000);
-        }
-      } else {
-        getNotice(s, error?.message ?? "error while sync", 10 * 1000);
+      const parts =
+        error instanceof AggregateError ? [...error.errors] : [error];
+      for (const e of parts) {
+        const msg = errorToMessage(e);
+        syncErrors.push(msg);
+        getNotice(s, `${this.manifest.name}: ${msg}`, 0);
       }
     };
 
@@ -428,6 +440,7 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
       pathName: string,
       decision: string
     ) => {
+      plannedActions = realTotalCount;
       this.setCurrSyncMsg(
         t,
         s,
@@ -458,7 +471,13 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
     const unsupported = getUnsupportedSyncSettingsReason(this.settings);
     if (unsupported !== undefined) {
       console.warn(unsupported);
-      getNotice(triggerSource, unsupported, 10 * 1000);
+      getNotice(triggerSource, unsupported, 0);
+      await this.appendSyncLog({
+        time: new Date(),
+        event: `${triggerSource} sync`,
+        outcome: "failed",
+        details: [unsupported],
+      });
       return;
     }
 
@@ -467,7 +486,14 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
       encryptionSalt = await this.resolveEncryptionSalt(fsRemote);
     } catch (e) {
       console.error(e);
-      getNotice(triggerSource, `${e}`, 10 * 1000);
+      const msg = errorToMessage(e);
+      getNotice(triggerSource, `${this.manifest.name}: ${msg}`, 0);
+      await this.appendSyncLog({
+        time: new Date(),
+        event: `${triggerSource} sync`,
+        outcome: "failed",
+        details: [msg],
+      });
       return;
     }
     const fsEncrypt = new FakeFsEncrypt(
@@ -500,10 +526,71 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
       callbackSyncProcess
     );
 
+    const foreign = [...fsEncrypt.skippedForeignKeys];
+    if (foreign.length > 0) {
+      getNotice(
+        triggerSource,
+        t("syncrun_foreign_objects_skipped", {
+          count: `${foreign.length}`,
+          names: foreign.slice(0, 5).join(", "),
+        }),
+        0
+      );
+    }
+    const details: string[] = [];
+    if (syncErrors.length === 0) {
+      details.push(`${plannedActions} file operation(s) planned`);
+    }
+    details.push(...syncErrors);
+    if (foreign.length > 0) {
+      details.push(
+        `skipped ${foreign.length} remote object(s) not written by this plugin: ${foreign.join(", ")}`
+      );
+    }
+    await this.appendSyncLog({
+      time: new Date(),
+      event: `${triggerSource} sync (${this.settings.serviceType})`,
+      outcome: syncErrors.length === 0 ? "ok" : "failed",
+      details,
+    });
+
     fsEncrypt.closeResources();
     (profiler as Profiler | undefined)?.clear();
 
     this.syncEvent?.trigger("SYNC_DONE");
+  }
+
+  getSyncLogPath() {
+    const dir =
+      this.manifest.dir ??
+      `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
+    return `${dir}/${SYNC_LOG_FILE_NAME}`;
+  }
+
+  /**
+   * Appends to the sync log (sanitized, newest MAX_SYNC_LOG_LINES lines).
+   * Never fails the caller.
+   */
+  async appendSyncLog(entry: SyncLogEntry) {
+    try {
+      const path = this.getSyncLogPath();
+      const adapter = this.app.vault.adapter;
+      const existing = (await adapter.exists(path))
+        ? await adapter.read(path)
+        : "";
+      await adapter.write(
+        path,
+        appendLogLines(existing, formatSyncLogEntry(entry))
+      );
+    } catch (e) {
+      console.warn(`cannot write the sync log: ${e}`);
+    }
+  }
+
+  async readSyncLog() {
+    const path = this.getSyncLogPath();
+    const adapter = this.app.vault.adapter;
+    return (await adapter.exists(path)) ? await adapter.read(path) : "";
   }
 
   async onload() {
@@ -809,6 +896,14 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
         }, 1000 * 30)
       );
     }
+
+    this.addCommand({
+      id: "show-sync-log",
+      name: t("command_showsynclog"),
+      callback: async () => {
+        new SyncLogModal(this.app, this).open();
+      },
+    });
 
     this.addCommand({
       id: "start-sync",
@@ -1151,7 +1246,10 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
       password !== "" &&
       method === "rclone-base64"
     ) {
-      remoteIsEmpty = (await fsRemote.walkPartial()).length === 0;
+      // objects not written by this plugin don't count
+      remoteIsEmpty =
+        partitionForeign(await fsRemote.walkPartial(), method).ours.length ===
+        0;
     }
     const decision = decideEncryptionSalt({
       password,
