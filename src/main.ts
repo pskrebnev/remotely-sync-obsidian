@@ -96,7 +96,7 @@ import {
   splitSecretsForDisk,
 } from "./secretStore";
 import { SyncItSimplyStupidSettingTab } from "./settings";
-import { syncer } from "./sync";
+import { type SyncProgressCallback, syncer } from "./sync";
 import { SyncAlgoV3Modal } from "./syncAlgoV3Notice";
 import {
   SYNC_LOG_FILE_NAME,
@@ -433,21 +433,21 @@ export default class SyncItSimplyStupidPlugin extends Plugin {
       this.isSyncing = isSyncing;
     };
 
-    const callbackSyncProcess = async (
-      s: SyncTriggerSourceType,
-      realCounter: number,
-      realTotalCount: number,
-      pathName: string,
-      decision: string
+    // the engine (src/sync.ts) reports progress without the trigger source
+    const callbackSyncProcess: SyncProgressCallback = async (
+      realCounter,
+      realTotalCount,
+      pathName,
+      decision
     ) => {
       plannedActions = realTotalCount;
       this.setCurrSyncMsg(
         t,
-        s,
+        triggerSource,
         realCounter,
         realTotalCount,
         pathName,
-        decision,
+        decision ?? "",
         triggerSource
       );
     };

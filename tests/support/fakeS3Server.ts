@@ -9,6 +9,11 @@ export type FakeS3Mode = "ok" | "forbidden" | "hang";
 
 export const startFakeS3 = async (bucket: string) => {
   const objects = new Map<string, Buffer>();
+  // per object: upload time and x-amz-meta-* headers, as real S3 keeps them
+  const info = new Map<
+    string,
+    { lastModified: Date; meta: Record<string, string> }
+  >();
   const state = { mode: "ok" as FakeS3Mode, requests: [] as string[] };
 
   const server = http.createServer((req, res) => {
@@ -44,7 +49,7 @@ export const startFakeS3 = async (bucket: string) => {
           .filter((k) => k.startsWith(prefix))
           .map(
             (k) =>
-              `<Contents><Key>${k}</Key><LastModified>2026-01-01T00:00:00.000Z</LastModified><ETag>"x"</ETag><Size>${objects.get(k)!.length}</Size></Contents>`
+              `<Contents><Key>${k}</Key><LastModified>${(info.get(k)?.lastModified ?? new Date(0)).toISOString()}</LastModified><ETag>"x"</ETag><Size>${objects.get(k)!.length}</Size></Contents>`
           )
           .join("");
         res.writeHead(200, { "content-type": "application/xml" });
@@ -55,6 +60,13 @@ export const startFakeS3 = async (bucket: string) => {
       }
       if (req.method === "PUT") {
         objects.set(key, Buffer.concat(chunks));
+        const meta: Record<string, string> = {};
+        for (const [h, v] of Object.entries(req.headers)) {
+          if (h.startsWith("x-amz-meta-") && typeof v === "string") {
+            meta[h] = v;
+          }
+        }
+        info.set(key, { lastModified: new Date(), meta });
         res.writeHead(200, { etag: '"x"' });
         res.end();
         return;
@@ -68,14 +80,18 @@ export const startFakeS3 = async (bucket: string) => {
         }
         res.writeHead(200, {
           "content-length": `${body.length}`,
-          "last-modified": "Thu, 01 Jan 2026 00:00:00 GMT",
+          "last-modified": (
+            info.get(key)?.lastModified ?? new Date(0)
+          ).toUTCString(),
           etag: '"x"',
+          ...(info.get(key)?.meta ?? {}),
         });
         res.end(req.method === "GET" ? body : undefined);
         return;
       }
       if (req.method === "DELETE") {
         objects.delete(key);
+        info.delete(key);
         res.writeHead(204);
         res.end();
         return;

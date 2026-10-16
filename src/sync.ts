@@ -143,6 +143,22 @@ const isSkipItemByName = (
 
 export type SyncPlanType = Record<string, MixedEntity>;
 
+/**
+ * Progress of the actual sync: called before each file operation.
+ */
+export type SyncProgressCallback = (
+  realCounter: number,
+  realTotalCount: number,
+  pathName: string,
+  decision: string | undefined
+) => Promise<void> | void;
+
+export type ProtectModifyPercentageErrorStrFunc = (
+  protectModifyPercentage: number,
+  realModifyDeleteCount: number,
+  allFilesCount: number
+) => string;
+
 const ensembleMixedEnties = async (
   localEntityList: Entity[],
   prevSyncEntityList: Entity[],
@@ -1193,10 +1209,10 @@ export const doActualSync = async (
   profileID: string,
   concurrency: number,
   protectModifyPercentage: number,
-  getProtectModifyPercentageErrorStrFunc: any,
+  getProtectModifyPercentageErrorStrFunc: ProtectModifyPercentageErrorStrFunc,
   db: InternalDBs,
   profiler: Profiler | undefined,
-  callbackSyncProcess?: any
+  callbackSyncProcess?: SyncProgressCallback
 ) => {
   profiler?.addIndent();
   profiler?.insert("doActualSync: enter");
@@ -1381,7 +1397,7 @@ export async function syncer(
   vaultRandomID: string,
   configDir: string,
   settings: SyncItSimplyStupidPluginSettings,
-  getProtectModifyPercentageErrorStrFunc: any,
+  getProtectModifyPercentageErrorStrFunc: ProtectModifyPercentageErrorStrFunc,
   markIsSyncingFunc: (isSyncing: boolean) => void,
   notifyFunc?: (s: SyncTriggerSourceType, step: number) => Promise<any>,
   errNotifyFunc?: (s: SyncTriggerSourceType, error: Error) => Promise<any>,
@@ -1391,7 +1407,7 @@ export async function syncer(
     step: number,
     everythingOk: boolean
   ) => any,
-  callbackSyncProcess?: any
+  callbackSyncProcess?: SyncProgressCallback
 ) {
   console.info(`startting sync.`);
   markIsSyncingFunc(true);

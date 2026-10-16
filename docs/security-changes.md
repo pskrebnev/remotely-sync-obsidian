@@ -696,3 +696,36 @@ The `_sync-it-simply-stupid-encryption.json` file was the only object because it
   - an encrypted-looking name that doesn't decrypt stops the walk with a clear message.
 - Test support: the rclone web worker import is stubbed in tests (`tests/support/worker-stub.ts`).
 - Result: 130 tests pass (13 new).
+
+---
+
+## Fix: every sync failed with "no translate for 0" (version 0.9.8)
+
+Branch: `fix-sync-progress-callback`. Any sync with something to upload or download failed at the first item. The sync log showed, for example, `MyFiles/: no translate for 0`, and nothing reached the bucket.
+
+### Cause
+
+A regression from the [removal of PRO code](#removal-of-pro-code). The restored v0.4.25 engine reports progress as `(realCounter, realTotalCount, pathName, decision)`. The plugin's callback in `src/main.ts` was written for the later PRO engine and expected `(triggerSource, realCounter, …)`.
+- The counter (`0`) arrived as the trigger source.
+- The status message lookup (`getStatusBarShortMsgFromSyncSource`) threw "no translate for 0".
+- The engine reported that error against the first item (here the folder `MyFiles/`) and stopped.
+
+The engine typed the callback as `any`, so TypeScript couldn't catch the mismatch, and v0.4.25 has no engine tests.
+
+### Fix
+
+- **`main.ts` callback:** it now has the engine's signature and uses the run's trigger source for status messages. The sync log's "file operation(s) planned" count is now correct too.
+- **Explicit types in `src/sync.ts`:** `SyncProgressCallback` and `ProtectModifyPercentageErrorStrFunc` replace `any`. Putting back the old five-argument callback now fails the typecheck, and with it the webpack build in CI. This was verified. Typing it also exposed that `decision` can be `undefined`, which is now handled.
+- **Version:** 0.9.8.
+
+### Tests: the sync engine end to end (new)
+
+`tests/syncEngine.test.ts` runs the real `syncer`:
+- **Setup:** an in-memory vault (`tests/support/memoryFs.ts`), the real S3 client against the in-memory S3 server (which now keeps upload times and `x-amz-meta-*` metadata like real S3), and in-memory sync records.
+- **Cases:**
+  - a new vault is uploaded (including `MyFiles/README`), and progress arrives as (number, number, string, decision);
+  - a second sync without changes uploads nothing;
+  - a file that only exists remotely is downloaded;
+  - a file deleted locally is deleted remotely.
+
+Result: 134 tests pass (4 new).
