@@ -47,6 +47,7 @@ Everything else in `main.js` comes from the bundled libraries, as license header
 
 - **Settings:** `.obsidian/plugins/sync-it-simply-stupid/data.json`. Credentials are kept in Obsidian's secret storage on Obsidian 1.11.4+, not in this file.
 - **Sync history and logs:** Obsidian's local IndexedDB (database `syncitsimplystupiddb`).
+- **Sync log:** `.obsidian/plugins/sync-it-simply-stupid/sync-log.txt` (newest 1,000 lines). It holds the outcome of each sync and connectivity check, the number of file operations, error messages and the names of skipped remote objects. Error text is sanitized before writing (URL query strings, `password=…`, `token=…` and similar values, and AWS-style access key IDs are removed), and vault file names aren't logged. The file is never synced, not even with config-folder sync.
 - **Settings exports (QR code or link):** created locally and encrypted with your passphrase. The QR image is generated on the device; no QR service is used.
 
 ## How to re-check after changes

@@ -2,6 +2,7 @@ import type { CipherMethodType, Entity } from "./baseTypes";
 import * as openssl from "./encryptOpenSSL";
 import * as rclone from "./encryptRClone";
 import { ENCRYPTION_PARAMS_FILE } from "./encryptionParams";
+import { isCertainlyForeignName, partitionForeign } from "./foreignObjects";
 import { filterOutKeys, isSpecialFolderNameToSkip, isVaildText } from "./misc";
 
 import cloneDeep from "lodash/cloneDeep";
@@ -80,6 +81,8 @@ export class FakeFsEncrypt extends FakeFs {
   hasCacheMap: boolean;
   kind: string;
   hiddenKeys: Set<string>;
+  // remote objects not written by this plugin, skipped in the last walk
+  skippedForeignKeys: string[];
 
   readonly salt: string;
 
@@ -97,6 +100,7 @@ export class FakeFsEncrypt extends FakeFs {
     this.cacheMapOrigToEnc = {};
     this.hasCacheMap = false;
     this.hiddenKeys = new Set();
+    this.skippedForeignKeys = [];
 
     this.kind = `encrypt(${this.innerFs.kind},${
       this.password !== "" ? method : "no password"
@@ -123,7 +127,16 @@ export class FakeFsEncrypt extends FakeFs {
   }
 
   async isPasswordOk(): Promise<PasswordCheckType> {
-    const innerWalkResult = await this.walkPartial();
+    // raw names: foreign objects (not written by this plugin) must not
+    // decide whether the password is right
+    let innerWalkResult = (await this.innerFs.walkPartial()).filter(
+      (e) =>
+        e.keyRaw !== ENCRYPTION_PARAMS_FILE &&
+        !isSpecialFolderNameToSkip(e.keyRaw, [])
+    );
+    if (!this.isPasswordEmpty()) {
+      innerWalkResult = partitionForeign(innerWalkResult, this.method).ours;
+    }
 
     if (innerWalkResult === undefined || innerWalkResult.length === 0) {
       // remote empty
@@ -217,6 +230,7 @@ export class FakeFsEncrypt extends FakeFs {
 
   async _dealWithWalk(innerWalkResult: Entity[]): Promise<Entity[]> {
     const res: Entity[] = [];
+    this.skippedForeignKeys = [];
 
     if (this.isPasswordEmpty()) {
       for (const innerEntity of innerWalkResult) {
@@ -237,8 +251,20 @@ export class FakeFsEncrypt extends FakeFs {
           // plain, unencrypted file describing the encryption itself
           continue;
         }
+        if (isCertainlyForeignName(innerEntity.keyRaw, this.method)) {
+          // e.g. uploaded in the provider's dashboard: never read or delete
+          this.skippedForeignKeys.push(innerEntity.keyRaw);
+          continue;
+        }
 
-        const key = await this._decryptName(innerEntity.keyRaw);
+        let key: string;
+        try {
+          key = await this._decryptName(innerEntity.keyRaw);
+        } catch (e) {
+          throw new Error(
+            `Cannot decrypt the name of the remote object "${innerEntity.keyRaw}". It was not written by this plugin with the current password and encryption method. If another device is re-encrypting the remote, wait until it finishes; otherwise check the password, or remove this object from the remote.`
+          );
+        }
         const size = key.endsWith("/") ? 0 : undefined;
         res.push({
           key: key,

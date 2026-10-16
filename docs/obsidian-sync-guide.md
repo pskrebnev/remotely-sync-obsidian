@@ -153,6 +153,8 @@ The plugin's own settings file is **never** synced, even with config-folder sync
 - **Config folder (`.obsidian`):** *Sync Config Dir (experimental)* syncs themes, snippets and other plugins' settings and code. Only enable it if nobody else can write to your bucket, because plugin code from the bucket runs on every device. Keep encryption on.
 - **Safety net:** *Abort Sync If Modification Above Percentage* (default 50%) stops a sync that would delete or change more than that share of your files, which protects you from mistakes such as pointing two vaults at the same bucket.
 - **Sync direction:** two-way (default), or *incremental push only* / *incremental pull only* for one-way setups such as a backup device.
+- **Add files through the vault.** With encryption on, files uploaded directly to the bucket aren't synced; they're skipped with a notice. See [Check what's synced](./remote_services/s3_cloudflare_r2/README.md#check-whats-synced).
+- **Sync log:** the command **"Sync It Simply Stupid: show sync log"** shows the result of every sync and connectivity check (no passwords, keys or tokens). Error messages stay on screen until you click them.
 - **Not supported:** allow lists (use ignore paths instead), the push/pull directions *with delete*, and syncing only the bookmarks file.
 
 ## 10. Upgrade an existing encrypted bucket
@@ -170,6 +172,8 @@ The same button **rotates the salt** on an already upgraded bucket.
 
 | Message or symptom | Cause and fix |
 |---|---|
+| *… object(s) in the remote were not created by this plugin and were skipped* | Files were uploaded directly to the bucket. Add files through your vault instead. |
+| *Cannot decrypt the name of the remote object …* | See the [Cloudflare R2 troubleshooting](./remote_services/s3_cloudflare_r2/README.md#9-troubleshooting). |
 | *refusing plain http S3 endpoint …* | The endpoint uses `http://` on a public host. Use `https://`. |
 | *Sync is paused: "Allow list" paths are set …* | An old configuration uses an allow list, which Sync It Simply Stupid doesn't support. Clear the list (shown in the settings while it has entries) and use *Regex Of Paths To Ignore* instead. |
 | *Sync is paused: the sync direction … is not supported* | An old configuration uses a push/pull direction *with delete*. Choose another direction under *Sync Direction*. |

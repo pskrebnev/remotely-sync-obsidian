@@ -116,6 +116,27 @@ On the first sync, the plugin stores a random per-vault salt in a small file in 
 3. In the Cloudflare dashboard, open the bucket. You'll see encrypted object names and `_sync-it-simply-stupid-encryption.json`.
 4. Optional: in **Basic Settings**, set **Schedule For Auto Run** (e.g. every 5 minutes), **Run Once On Start Up Automatically** and **Sync On Save**.
 
+### Check what's synced
+
+> **With encryption on, add files only through your vault.** Put a file (for example a PDF) into the vault folder or drag it into Obsidian, then sync; the plugin uploads it encrypted. Files uploaded directly in the Cloudflare dashboard are **not** synced: the plugin skips them (it never downloads or deletes them) and shows a notice that names them. Delete them from the bucket, or keep them there if you want.
+
+With encryption on, object names in the dashboard are encrypted, so you can't read them there. To check:
+
+| Where | What it tells you |
+|---|---|
+| Bucket → **Objects** | One encrypted object per vault file (and per folder), plus `_sync-it-simply-stupid-encryption.json`. If you only see that file, nothing has been uploaded yet: check the sync log. |
+| Bucket → **Metrics** | Total stored size and object count over time |
+| Command **Sync It Simply Stupid: show sync log** | The result of every sync and connectivity check: OK or failed, the number of file operations, error messages, and skipped objects. No passwords, keys or tokens. |
+| Command **Sync It Simply Stupid: start sync (dry run only)** | What a sync *would* upload, download or delete, without doing it |
+| Command **export sync plans (latest 1)** | The per-file decisions of the last sync, as a note in the vault's `_debug_sync_it_simply_stupid/` folder |
+| **rclone** CLI | The real (decrypted) file names: see below |
+
+**Listing the decrypted names with rclone** (optional). In `rclone config`, create:
+1. an **S3** remote for R2 (provider *Cloudflare*, your Access Key ID and Secret Access Key, endpoint `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`), e.g. named `r2`;
+2. a **crypt** remote on top of it: remote `r2:<bucket-name>`, filename encryption *standard*, directory name encryption *true*, **filename encoding `base64`** (in the advanced options; rclone's default is base32, the plugin uses base64), **password** = your encryption password, **password2** = the `salt` value from `_sync-it-simply-stupid-encryption.json`, e.g. named `vault`.
+
+Then `rclone ls vault:` lists your files with their real names.
+
 ## 7. Add another device
 
 1. Install the plugin on the other device, in a vault with the **same name**.
@@ -147,6 +168,8 @@ On the first sync, the plugin stores a random per-vault salt in a small file in 
 
 | Symptom | Cause and fix |
 |---|---|
+| Sync shows "error while sync" or *Cannot decrypt the name of the remote object …* (older versions showed only the first) | An object in the bucket wasn't written by this plugin with the current password. If its name looks encrypted, another device may be re-encrypting the remote (wait), the password may differ, or the object is damaged. Remove objects you added yourself in the dashboard. |
+| Notice: *… object(s) in the remote were not created by this plugin and were skipped* | Files uploaded directly in the dashboard (names like `report.pdf`). They're ignored, never downloaded or deleted. Add files through your vault instead, and delete those objects if you don't need them. |
 | `refusing plain http S3 endpoint` | The endpoint starts with `http://`. Use the `https://` endpoint from the dashboard. |
 | `403 Forbidden` / `AccessDenied` | The token isn't allowed on this bucket. Check that it has *Object Read & Write* and that the bucket is selected under *Specify bucket(s)*. Also check the **Bucket Name** spelling. |
 | `SignatureDoesNotMatch` | Wrong **Secret Access Key** (often a missing character when copying), or a wrong **Region**. Use `auto`. |

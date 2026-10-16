@@ -22,7 +22,7 @@ import type {
 
 import { API_VER_ENSURE_REQURL_OK, VALID_REQURL } from "./baseTypesObs";
 import { messyConfigToNormal } from "./configPersist";
-import { runConnectivityCheck } from "./connectivity";
+import { errorToMessage, runConnectivityCheck } from "./connectivity";
 import {
   exportVaultProfilerResultsToFiles,
   exportVaultSyncPlansToFiles,
@@ -785,11 +785,24 @@ class ReencryptModal extends Modal {
             });
             status.setText(msg);
             new Notice(msg, 10 * 1000);
+            await this.plugin.appendSyncLog({
+              time: new Date(),
+              event: "re-encrypt remote",
+              outcome: "ok",
+              details: [msg],
+            });
           } catch (e) {
             console.error(e);
-            const msg = t("reencrypt_failed", { error: `${e}` });
+            const msg = t("reencrypt_failed", { error: errorToMessage(e) });
             status.setText(msg);
-            new Notice(msg, 10 * 1000);
+            // stays until clicked
+            new Notice(msg, 0);
+            await this.plugin.appendSyncLog({
+              time: new Date(),
+              event: "re-encrypt remote",
+              outcome: "failed",
+              details: [msg],
+            });
           } finally {
             this.running = false;
             button.setDisabled(false);
@@ -973,8 +986,15 @@ export class SyncItSimplyStupidSettingTab extends PluginSettingTab {
         new Notice(t(succKey));
       } else {
         console.warn(res.message);
-        new Notice(`${t(failKey)}\n${res.message}`, 15 * 1000);
+        // stays until clicked
+        new Notice(`${t(failKey)}\n${res.message}`, 0);
       }
+      await this.plugin.appendSyncLog({
+        time: new Date(),
+        event: `connectivity check (${this.plugin.settings.serviceType})`,
+        outcome: res.ok ? "ok" : "failed",
+        details: res.ok ? [] : [res.message],
+      });
     } finally {
       button.setDisabled(false);
     }
