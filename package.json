@@ -78,7 +78,7 @@
     "localforage-getitems": "^1.4.2",
     "localforage-removeitems": "^1.4.0",
     "lodash": "^4.17.21",
-    "lucide": "^0.416.0",
+    "lucide": "^1.59.0",
     "mime-types": "^2.1.35",
     "mustache": "^4.2.0",
     "nanoid": "^5.0.7",
